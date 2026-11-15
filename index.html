@@ -82,6 +82,8 @@
   .ctrl-3d button.on{background:#ff8c00 !important;color:#1a1006}
   #g3dCredits{position:absolute;left:8px;bottom:30px;z-index:3;display:none;max-width:70%;font-size:11px;line-height:1.3;
     padding:3px 8px;border-radius:6px;background:rgba(255,255,255,.85);color:#222;pointer-events:none}
+  #g3dStatus{position:absolute;left:50%;top:12px;transform:translateX(-50%);z-index:3;display:none;padding:6px 12px;border-radius:999px;
+    font-size:12px;font-weight:600;background:rgba(20,33,33,.82);color:#fffaf0;pointer-events:none;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
   #g3dCredits b{font-weight:700;letter-spacing:.01em}
   #toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#222;border:1px solid var(--accent);padding:8px 14px;border-radius:8px;display:none;z-index:9}
   @media (max-width:1000px){
@@ -598,6 +600,8 @@ class Map3DControl {
     const b=document.createElement('button'); b.type='button'; b.id='btn3d'; b.textContent='3D';
     b.title='3D view of this spot'; b.setAttribute('aria-label','Toggle 3D view of this spot'); b.setAttribute('aria-pressed','false');
     b.onclick=()=>set3D(!mode3d);
+    const warm=()=>{ if(g3d.available) loadDeck().catch(()=>{}); };
+    b.addEventListener('pointerenter',warm); b.addEventListener('touchstart',warm,{passive:true});
     c.appendChild(b); this._c=c; return c;
   }
   onRemove(){ this._c.remove(); }
@@ -607,7 +611,7 @@ if (HAS_MAP) try {
   map = new maplibregl.Map({ container:'map', style:OFM_STYLE, center:[-81.4,28.4], zoom:6.5, maxPitch:80 });
   map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'top-right');
   map.addControl(new Map3DControl(),'top-right');
-  map.on('zoomend',()=>{ if(mode3d) update3DView(); });
+  map.on('zoomend',()=>{ if(mode3d) update3DView(); else if(g3d.available && map.getZoom()>=G3D_MIN_ZOOM-1) loadDeck().catch(()=>{}); });
   map.addControl(new maplibregl.ScaleControl(),'bottom-left');
 
   map.on('style.load',()=>{ try{ setupLayers(); }catch(e){ console.error('setupLayers',e); } });
@@ -831,7 +835,18 @@ function setG3dCredits(text){
   el.innerHTML='<b>Google</b>'+(text?' · '+escH(text):'');
   el.style.display=g3d.active?'block':'none';
 }
-const onTilesetLoad=ts=>{ g3d.loaded=true; ts.options.onTraversalComplete=sel=>{
+function g3dStatusTick(){
+  let el=$('g3dStatus');
+  if(!el){ el=document.createElement('div'); el.id='g3dStatus'; el.setAttribute('role','status'); $('map').appendChild(el); }
+  const ts=g3d.ts, busy=g3d.active && (!ts || (typeof ts.isLoaded==='function' && !ts.isLoaded()));
+  el.textContent=ts?'Loading 3D detail…':'Starting 3D…';
+  el.style.display=busy?'block':'none';
+  if(g3d.active) setTimeout(g3dStatusTick,400); else el.style.display='none';
+}
+const onTilesetLoad=ts=>{ g3d.loaded=true; g3d.ts=ts;
+  // Detail target 16 px instead of deck.gl's default 8: far fewer tiles and MB for a view that looks almost the same.
+  ts.options.maximumScreenSpaceError=16; ts.memoryAdjustedScreenSpaceError=16;   // the library copies it at creation
+  ts.options.onTraversalComplete=sel=>{
   const c=new Set();
   sel.forEach(t=>{ const cp=t.content&&t.content.gltf&&t.content.gltf.asset&&t.content.gltf.asset.copyright; if(cp) cp.split(';').forEach(x=>{x=x.trim(); if(x && x!=='Google') c.add(x);}); });
   setG3dCredits([...c].join('; ')); return sel; }; };
@@ -857,7 +872,7 @@ async function update3DView(){
     if(!mode3d) return;
     if(!g3d.overlay){ g3d.overlay=new deck.MapboxOverlay({interleaved:false, layers:[]}); map.addControl(g3d.overlay); }
     g3d.overlay.setProps({layers:g3dLayers()});
-    g3d.active=true;
+    if(!g3d.active){ g3d.active=true; g3dStatusTick(); }
     // If Google's tiles never arrive (API not enabled, trial over, offline), fall back to the standard 3D view.
     if(!g3d.loaded && !g3d.watch) g3d.watch=setTimeout(()=>{
       g3d.watch=null;

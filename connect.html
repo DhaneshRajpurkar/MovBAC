@@ -2,7 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- Installable as a home-screen app (Safari: Share > Add to Home Screen) -->
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Fire Connect">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#2F4F4F">
 <title>Fire Connect — MovBAC</title>
 <link href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
@@ -61,7 +69,17 @@
   .empty{color:var(--muted);font-size:13px;padding:20px 0;text-align:center}
   .maplibregl-popup-content{background:#1f3333;color:#fffaf0;font-size:12px;max-width:260px}
   .maplibregl-popup-tip{border-top-color:#1f3333 !important}
-  @media (max-width:900px){ .layout{grid-template-columns:1fr;padding:10px} header,.sos{padding-left:16px;padding-right:16px} #map{height:300px} }
+  @media (max-width:900px){ .layout{grid-template-columns:1fr;padding:10px} header,.sos{padding-left:16px;padding-right:16px} #map{height:300px}
+    input,select,textarea{font-size:16px} }            /* 16px stops iPhone zooming in on every tap */
+  /* Installed app: keep clear of the notch and home bar */
+  header{padding-top:max(12px,env(safe-area-inset-top))}
+  body{padding-bottom:env(safe-area-inset-bottom)}
+  .standalone .backlink{display:none}
+  #installTip{display:none;position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:50;
+    padding:12px 40px 12px 14px;border-radius:14px;border:1px solid var(--line);background:var(--panel);color:var(--text);
+    font-size:14px;box-shadow:0 10px 30px rgba(0,0,0,.35);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px)}
+  #installTip b{color:var(--accent)}
+  #installTip button{position:absolute;top:6px;right:6px;border:0;background:none;font-size:18px;line-height:1;padding:6px 8px}
 </style>
 <link rel="stylesheet" href="theme.css">
 </head>
@@ -72,7 +90,7 @@
   <span class="spacer"></span>
   <button id="themeBtn" class="theme-toggle" type="button">Light mode</button>
   <span class="live" id="live">connecting…</span>
-  <a href="/">← MovBAC map</a>
+  <a class="backlink" href="/">← MovBAC map</a>
 </header>
 
 <div class="sos" role="alert">
@@ -322,6 +340,25 @@ async function loadRisk(){            // the same 30-day forecast squares as the
 }
 
 poll(); setInterval(poll,5000); setInterval(render,60000);
+
+/* ---- Home-screen app ---- */
+const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+if(standalone) document.documentElement.classList.add('standalone');
+if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(()=>{});
+// On iPhone Safari, show once how to add Fire Connect to the home screen.
+addEventListener('DOMContentLoaded',()=>{          // the tip box comes after this script
+  const ios=/iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+  let seen=false; try{ seen=localStorage.getItem('fc-install-tip')==='1'; }catch{}
+  if(!ios || standalone || seen) return;
+  const tip=$('installTip'); tip.style.display='block';
+  tip.querySelector('button').onclick=()=>{ tip.style.display='none'; try{ localStorage.setItem('fc-install-tip','1'); }catch{} };
+});
 </script>
+<div id="installTip" role="note">
+  <b>Get Fire Connect as an app:</b> tap the Share button
+  <svg width="14" height="16" viewBox="0 0 14 18" aria-label="Share" style="vertical-align:-2px"><path d="M7 1v11M3 5l4-4 4 4M2 9H1v8h12V9h-1" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+  then <b>Add to Home Screen</b>.
+  <button type="button" aria-label="Dismiss">×</button>
+</div>
 </body>
 </html>

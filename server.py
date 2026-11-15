@@ -8,7 +8,7 @@ The key is read from the .env file in this folder and never reaches the browser.
 Standard-library only: no pip install needed (Python 3.9+).
 """
 import csv, gzip, hashlib, heapq, hmac, io, json, math, os, random, re, threading, time
-import urllib.error, urllib.parse, urllib.request
+import http.client, urllib.error, urllib.parse, urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, timedelta
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
@@ -48,8 +48,28 @@ GTILE_PATH = re.compile(r"^/v1/3dtiles/[A-Za-z0-9_\-./]+\Z")
 G3D_SESSIONS_PER_HOUR = 30      # new 3D sessions (billed root requests) allowed per visitor per hour
 _g3d_roots = {}
 _g3d_lock = threading.Lock()
+_g3d_conn = threading.local()   # one kept-open HTTPS connection to Google per server thread (no new TLS handshake per tile)
 
-PUBLIC_FILES = {"/", "/index.html", "/connect.html", "/theme.css", "/theme.js", "/README.md"}
+
+def google_fetch(path_qs):
+    """GET a Google tile over a reused connection. Returns (status, content type, cache-control, body)."""
+    for attempt in (0, 1):
+        c = getattr(_g3d_conn, "c", None)
+        if c is None:
+            c = _g3d_conn.c = http.client.HTTPSConnection("tile.googleapis.com", timeout=60)
+        try:
+            c.request("GET", path_qs, headers={"User-Agent": "burning-activity-calendar/1.0"})
+            r = c.getresponse()
+            return r.status, r.getheader("Content-Type", "application/octet-stream"), r.getheader("Cache-Control"), r.read()
+        except (http.client.HTTPException, OSError):
+            c.close(); _g3d_conn.c = None          # stale kept-open connection: retry once on a fresh one
+            if attempt:
+                raise
+
+PUBLIC_FILES = {"/", "/index.html", "/connect.html", "/theme.css", "/theme.js", "/README.md",
+                # Fire Connect as an installable home-screen app
+                "/manifest.webmanifest", "/sw.js", "/icons/apple-touch-icon.png", "/icons/icon-192.png",
+                "/icons/icon-512.png", "/icons/icon-maskable-512.png"}
 PREDICTION_FILE = re.compile(r"^/predictions/[a-z0-9_]+\.json\Z")   # forecast maps made by ml/train.py
 
 CACHE_DIR = os.path.join(ROOT, ".cache")   # downloaded FIRMS answers (gzip). Safe to delete.
@@ -916,6 +936,14 @@ def get_outlook(lat, lon):
 
 
 class Handler(SimpleHTTPRequestHandler):
+    extensions_map = {**SimpleHTTPRequestHandler.extensions_map, ".webmanifest": "application/manifest+json"}
+
+    def end_headers(self):
+        # The service worker and the app manifest must never be stale, or installed phones miss updates.
+        if self.path.split("?")[0] in ("/sw.js", "/manifest.webmanifest"):
+            self.send_header("Cache-Control", "no-cache")
+        super().end_headers()
+
     def __init__(self, *a, **kw):
         super().__init__(*a, directory=ROOT, **kw)
 
@@ -1036,18 +1064,17 @@ class Handler(SimpleHTTPRequestHandler):
                     return self.send_json(429, {"error": "Too many new 3D sessions this hour; try again later."})
                 _g3d_roots[ip] = recent + [now]
         params["key"] = GOOGLE_KEY
-        url = "https://tile.googleapis.com" + u.path + "?" + urllib.parse.urlencode(params)
-        req = urllib.request.Request(url, headers={"User-Agent": "burning-activity-calendar/1.0"})
         try:
-            with urllib.request.urlopen(req, timeout=60) as r:
-                body, ctype = r.read(), r.headers.get("Content-Type", "application/octet-stream")
-        except urllib.error.HTTPError as e:
-            return self.send_json(e.code, {"error": f"Google 3D tiles answered HTTP {e.code} (is the Map Tiles API enabled for this key?)"})
+            status, ctype, cache, body = google_fetch(u.path + "?" + urllib.parse.urlencode(params))
         except Exception as e:
             return self.send_json(502, {"error": f"Google 3D tiles unreachable: {type(e).__name__}"})
+        if status != 200:
+            return self.send_json(status, {"error": f"Google 3D tiles answered HTTP {status} (is the Map Tiles API enabled for this key?)"})
         self.send_response(200)
         self.send_header("Content-Type", ctype)
-        self.send_header("Cache-Control", "no-store")
+        # This server never stores tiles. The browser may keep them only as long as Google's own header allows;
+        # root.json (which starts a billed session) is never reused.
+        self.send_header("Cache-Control", "no-store" if u.path.endswith("/root.json") or not cache else cache)
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
