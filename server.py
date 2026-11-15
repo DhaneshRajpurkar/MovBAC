@@ -979,6 +979,15 @@ def get_outlook(lat, lon):
     }
 
 
+class _NoBody:
+    """Stands in for the response stream after the headers of a HEAD request."""
+    def write(self, b):
+        return len(b)
+
+    def flush(self):
+        pass
+
+
 class Handler(SimpleHTTPRequestHandler):
     extensions_map = {**SimpleHTTPRequestHandler.extensions_map, ".webmanifest": "application/manifest+json",
                       ".aac": "audio/aac", ".m4a": "audio/mp4", ".mp3": "audio/mpeg"}
@@ -988,6 +997,13 @@ class Handler(SimpleHTTPRequestHandler):
         if self.path.split("?")[0] in ("/sw.js", "/manifest.webmanifest", "/app/index.html", "/app/manifest.webmanifest"):
             self.send_header("Cache-Control", "no-cache")
         super().end_headers()
+        if self.command == "HEAD":                 # HEAD: same answer as GET, but drop the body
+            self.wfile = _NoBody()
+
+    def do_HEAD(self):
+        # Uptime monitors check with HEAD. Route it through do_GET so it follows exactly the same rules
+        # (API routes work, and only the site's public files are reachable).
+        return self.do_GET()
 
     def __init__(self, *a, **kw):
         super().__init__(*a, directory=ROOT, **kw)
