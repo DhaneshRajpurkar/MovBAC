@@ -460,6 +460,42 @@ def delete_message(body):
 load_messages()
 
 
+# Example posts so the board is never empty (the free host wipes .data/ on restarts, and judges may visit weeks
+# later). They appear only when there are no real posts, are clearly labelled, and are never saved to disk.
+EXAMPLE_POSTS = [
+    {"kind": "alert", "role": "responder", "verified": True, "name": "Example: County fire department",
+     "text": "EXAMPLE (demo only, not a real alert): Red flag warning for the Santa Monica Mountains. Strong offshore "
+             "winds and low humidity through Friday. No outdoor burning; be ready to leave if told to.",
+     "lat": 34.06, "lon": -118.75, "ago": 3600},
+    {"kind": "report", "role": "civilian", "verified": False, "name": "Example: Malibu resident",
+     "text": "EXAMPLE (demo only): Grey smoke rising behind the ridge north of the coast highway, drifting toward the ocean.",
+     "lat": 34.04, "lon": -118.69, "ago": 2400},
+    {"kind": "question", "role": "civilian", "verified": False, "name": "Example: Camper",
+     "text": "EXAMPLE (demo only): Is it OK to camp in Ocala National Forest this weekend, or is there a burn ban?",
+     "lat": 29.17, "lon": -81.79, "ago": 1800},
+    {"kind": "reply", "role": "forecaster", "verified": True, "name": "Example: Weather forecaster",
+     "text": "EXAMPLE (demo only): Fire danger there is low this week, but check the county burn-ban page before "
+             "lighting a campfire.", "reply_to": 3, "ago": 900},
+]
+
+
+def seed_examples():
+    if any(not m.get("deleted") for m in _msgs):
+        return
+    now, base = int(time.time()), (_msgs[-1]["id"] if _msgs else 0)
+    for i, e in enumerate(EXAMPLE_POSTS, start=1):
+        m = {k: v for k, v in e.items() if k != "ago"}
+        m.update(id=base + i, time=now - e["ago"], example=True)
+        if m.get("reply_to"):
+            m["reply_to"] = base + m["reply_to"]
+        if "lat" in m:
+            m["forecast"] = forecast_at(m["lat"], m["lon"])
+        _msgs.append(m)
+
+
+seed_examples()
+
+
 # ---------------------------------------------------------------------------------------------------
 # Real monthly calendar (/api/monthly) and the Wildfire outlook widget (/api/outlook).
 # data/monthly_1deg.json.gz is built by ml/monthly.py from the FIRMS downloads: monthly MODIS counts per

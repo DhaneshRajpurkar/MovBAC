@@ -1,0 +1,21 @@
+# Keeps the free Render server awake so judges don't wait ~50 s for it to start.
+# Visits the site every 10 minutes. Render's free plan (750 h/month) covers being on all month.
+# Note: GitHub pauses scheduled workflows after 60 days without commits; UptimeRobot is the main pinger.
+name: Keep site awake
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping MaVBAC
+        run: |
+          for i in 1 2 3; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 90 https://movbac.onrender.com/api/status) && echo "HTTP $code"
+            [ "$code" = "200" ] && exit 0
+            sleep 20
+          done
+          echo "Site did not answer 200"; exit 1

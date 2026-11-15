@@ -136,7 +136,7 @@
     </div>
     <div id="codeBox" hidden>
       <label for="code">Responder code</label>
-      <input id="code" type="password" autocomplete="off" placeholder="Code from your agency">
+      <div style="display:flex;gap:6px"><input id="code" type="password" autocomplete="new-password" name="fc-responder-code" spellcheck="false" autocapitalize="characters" placeholder="Code from your agency" style="flex:1;min-width:0"><button type="button" id="codeShow" aria-label="Show code" aria-pressed="false">Show</button></div>
       <p class="hint">Posts are marked verified only with the right code. Verified users can post official alerts and remove false or harmful posts.</p>
     </div>
 
@@ -364,6 +364,8 @@ async function loadRisk(){            // the same 30-day forecast squares as the
 }
 
 poll(); setInterval(poll,5000); setInterval(render,60000);
+$('codeShow').onclick=()=>{ const c=$('code'), show=c.type==='password'; c.type=show?'text':'password';
+  $('codeShow').textContent=show?'Hide':'Show'; $('codeShow').setAttribute('aria-pressed',show); };
 
 /* ---- Home-screen app ---- */
 const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
