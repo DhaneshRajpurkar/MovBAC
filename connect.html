@@ -14,14 +14,17 @@
 <title>Fire Connect — MovBAC</title>
 <link href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poiret+One&display=swap" rel="stylesheet">
 <script src="theme.js"></script>
 <style>
   :root{ --report:#ff8c00; --question:var(--accent2); --verified:var(--accent2); }
   *{box-sizing:border-box}
-  html,body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  html,body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 "Inter",system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
   a{color:var(--accent2)}
   header{display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--line);background:var(--panel);flex-wrap:wrap}
-  header h1{font-size:18px;margin:0;font-weight:650}
+  @font-face{font-family:"Avayx";src:url("fonts/Avayx.ttf") format("truetype");font-display:swap}
+  header h1{font-family:"Avayx",system-ui,sans-serif;font-size:32px;line-height:1;margin:0;font-weight:400;letter-spacing:.12em}
   header .sub{color:var(--muted);font-size:13px}
   header .spacer{flex:1}
   .live{font-size:12px;color:var(--muted)} .live b{color:var(--good)}
@@ -34,7 +37,7 @@
   .sos b{color:var(--sos-text)}
   .layout{display:grid;grid-template-columns:360px 1fr;gap:14px;padding:14px;max-width:1500px;margin:0 auto}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;min-width:0}
-  .card h2{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 10px}
+  .card h2{font-family:"Poiret One",system-ui,sans-serif;text-transform:uppercase;font-size:22px;font-weight:400;letter-spacing:.03em;color:var(--text);margin:0 0 10px}
   label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
   textarea{width:100%;min-height:96px;resize:vertical}
   input,select{width:100%}
@@ -80,13 +83,34 @@
     font-size:14px;box-shadow:0 10px 30px rgba(0,0,0,.35);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px)}
   #installTip b{color:var(--accent)}
   #installTip button{position:absolute;top:6px;right:6px;border:0;background:none;font-size:18px;line-height:1;padding:6px 8px}
+  /* Same header as the MovBAC page: bar with a tab dipping down in the middle that holds the title. */
+  :root{--hb:60px;--tabd:26px;--tabw:240px;--tabs:34px}
+  @media (min-width:901px){
+    header{height:calc(var(--hb) + var(--tabd));padding:0 18px var(--tabd);margin-bottom:calc(-1 * var(--tabd));
+      flex-wrap:nowrap;border-bottom:0 !important;box-shadow:none !important;
+      clip-path:polygon(0 0,100% 0,100% var(--hb),calc(50% + var(--tabw)) var(--hb),calc(50% + var(--tabw) - var(--tabs)) 100%,
+        calc(50% - var(--tabw) + var(--tabs)) 100%,calc(50% - var(--tabw)) var(--hb),0 var(--hb))}
+    header h1{position:absolute;left:50%;top:0;bottom:0;transform:translateX(-50%);display:flex;align-items:center;padding-top:4px;white-space:nowrap}
+    header::before,header::after{content:"";position:absolute;top:calc(var(--hb) - 1px);height:1px;background:var(--accent);opacity:.75}
+    header::before{left:0;width:calc(50% - var(--tabw))}
+    header::after{right:0;width:calc(50% - var(--tabw))}
+    header .tab-edge{position:absolute;left:calc(50% - var(--tabw));top:calc(var(--hb) - 1px);width:calc(2 * var(--tabw));height:calc(var(--tabd) + 1px);
+      overflow:visible;pointer-events:none;color:var(--accent);opacity:.75}
+    .sos{padding-top:calc(12px + var(--tabd))}
+  }
+  @media (max-width:900px){
+    header{justify-content:center;gap:8px 10px}
+    header h1{flex-basis:100%;text-align:center;font-size:26px}
+    header .tab-edge,header .spacer{display:none}
+  }
 </style>
 <link rel="stylesheet" href="theme.css">
 </head>
 <body>
 <header>
-  <h1>Fire Connect</h1>
-  <span class="sub">Forecasters, first responders and the public, on one live board</span>
+  <h1 aria-label="Fire Connect">Fire Connect</h1>
+  <svg class="tab-edge" viewBox="0 0 480 27" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M0 0.5 L34 26 L446 26 L480 0.5" fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>
   <span class="spacer"></span>
   <button id="themeBtn" class="theme-toggle" type="button">Light mode</button>
   <span class="live" id="live">connecting…</span>

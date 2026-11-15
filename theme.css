@@ -95,3 +95,6 @@ input::placeholder,textarea::placeholder{color:var(--muted)}
 @media (prefers-reduced-transparency: reduce){
   header,aside,.card,.glass,.maplibregl-popup-content,#toast{-webkit-backdrop-filter:none;backdrop-filter:none;background:var(--bg-solid)}
 }
+
+/* Map controls and popups use the site font (Inter) instead of MapLibre's default */
+.maplibregl-map,.maplibregl-popup-content,.maplibregl-ctrl{font-family:"Inter",system-ui,sans-serif}
