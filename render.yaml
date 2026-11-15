@@ -1,0 +1,25 @@
+# Render blueprint for MovBAC (website + Fire Connect message server).
+# Secrets are NOT stored here: Render asks for each "sync: false" value when the blueprint is created.
+services:
+  - type: web
+    name: movbac
+    runtime: python
+    plan: free
+    buildCommand: "echo no dependencies, server.py is standard-library only"
+    startCommand: "python server.py"
+    healthCheckPath: /api/status
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      - key: HOST
+        value: "0.0.0.0"
+      - key: TRUST_PROXY
+        value: "1"
+      - key: FIRMS_MAP_KEY
+        sync: false
+      - key: OPENWEATHER_KEY
+        sync: false
+      - key: GOOGLE_MAPS_KEY
+        sync: false
+      - key: RESPONDER_CODE
+        sync: false

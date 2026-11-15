@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fire Connect — MovBAC</title>
+<link href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="theme.js"></script>
+<style>
+  :root{ --report:#ff8c00; --question:var(--accent2); --verified:var(--accent2); }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  a{color:var(--accent2)}
+  header{display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--line);background:var(--panel);flex-wrap:wrap}
+  header h1{font-size:18px;margin:0;font-weight:650}
+  header .sub{color:var(--muted);font-size:13px}
+  header .spacer{flex:1}
+  .live{font-size:12px;color:var(--muted)} .live b{color:var(--good)}
+  button,select,input,textarea{font:inherit;color:var(--text);background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:7px 10px}
+  button{cursor:pointer} button:hover{border-color:var(--accent)}
+  button.primary{background:var(--accent);color:#1a1006;border-color:var(--accent);font-weight:600}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  :is(button,select,input,textarea,a):focus-visible{outline:2px solid var(--accent2);outline-offset:1px}
+  .sos{background:var(--sos-bg);border-bottom:1px solid var(--alert);padding:10px 18px;font-size:14px}
+  .sos b{color:var(--sos-text)}
+  .layout{display:grid;grid-template-columns:360px 1fr;gap:14px;padding:14px;max-width:1500px;margin:0 auto}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;min-width:0}
+  .card h2{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 10px}
+  label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
+  textarea{width:100%;min-height:96px;resize:vertical}
+  input,select{width:100%}
+  .seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .seg button{flex:1;border:0;border-radius:0;background:transparent;padding:8px 4px;font-size:13px}
+  .seg button[aria-pressed="true"]{background:var(--accent);color:#1a1006;font-weight:600}
+  .hint{font-size:12px;color:var(--muted);margin:6px 0 0}
+  .err{color:var(--bad);font-size:13px;min-height:1em;margin-top:8px}
+  .locrow{display:flex;gap:6px;align-items:center}
+  .locrow span{flex:1;font-size:12px;color:var(--muted)}
+  #map{height:380px;border-radius:8px}
+  .alerts{display:grid;gap:8px;margin-bottom:14px}
+  .alerts:empty{display:none}
+  .feedbar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+  .feedbar button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
+  .msg{background:var(--panel2);border:1px solid var(--line);border-left:4px solid var(--muted);border-radius:10px;padding:10px 12px;margin-bottom:8px}
+  .msg.alert{border-left-color:var(--alert);background:var(--alert-bg)}
+  .msg.report{border-left-color:var(--report)}
+  .msg.question{border-left-color:var(--question)}
+  .msg .top{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+  .msg .who{color:var(--text);font-weight:600;font-size:13px}
+  .tag{font-size:11px;padding:1px 7px;border-radius:999px;border:1px solid currentColor}
+  .tag.verified{color:var(--verified)} .tag.unverified{color:var(--muted)}
+  .tag.k-alert{color:var(--alert-text)} .tag.k-report{color:var(--report)} .tag.k-question{color:var(--question)}
+  .msg .text{margin:6px 0;white-space:pre-wrap;word-wrap:break-word}
+  .ctx{font-size:12px;color:#dcd8cc;background:var(--glass-hi);border-radius:6px;padding:6px 8px;margin-top:6px}
+  .acts{display:flex;gap:6px;margin-top:6px}
+  .acts button{padding:3px 9px;font-size:12px}
+  .replies{margin:8px 0 0 14px;border-left:2px solid var(--line);padding-left:10px}
+  .replies .msg{margin-bottom:6px;background:var(--panel)}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;border:1.5px solid #fff;margin-right:4px;vertical-align:-1px}
+  .empty{color:var(--muted);font-size:13px;padding:20px 0;text-align:center}
+  .maplibregl-popup-content{background:#1f3333;color:#fffaf0;font-size:12px;max-width:260px}
+  .maplibregl-popup-tip{border-top-color:#1f3333 !important}
+  @media (max-width:900px){ .layout{grid-template-columns:1fr;padding:10px} header,.sos{padding-left:16px;padding-right:16px} #map{height:300px} }
+</style>
+<link rel="stylesheet" href="theme.css">
+</head>
+<body>
+<header>
+  <h1>Fire Connect</h1>
+  <span class="sub">Forecasters, first responders and the public, on one live board</span>
+  <span class="spacer"></span>
+  <button id="themeBtn" class="theme-toggle" type="button">Light mode</button>
+  <span class="live" id="live">connecting…</span>
+  <a href="/">← MovBAC map</a>
+</header>
+
+<div class="sos" role="alert">
+  <b>In danger or seeing a fire spread right now? Call your emergency number first:</b>
+  911 (US/Canada) · 000 (Australia) · 112 (EU and many countries) · 193 (Brazil fire service).
+  This board is a hackathon prototype and is <b>not watched by real emergency services</b>.
+  Always follow official evacuation orders.
+</div>
+
+<div class="layout">
+  <section class="card" aria-labelledby="postTitle">
+    <h2 id="postTitle">Post to the board</h2>
+
+    <label>I am a…</label>
+    <div class="seg" role="group" aria-label="Your role" id="roleSeg">
+      <button data-role="civilian" aria-pressed="true">Member of public</button>
+      <button data-role="forecaster" aria-pressed="false">Forecaster</button>
+      <button data-role="responder" aria-pressed="false">Responder</button>
+    </div>
+    <div id="codeBox" hidden>
+      <label for="code">Responder code</label>
+      <input id="code" type="password" autocomplete="off" placeholder="Code from your agency">
+      <p class="hint">Posts are marked verified only with the right code. Verified users can post official alerts and remove false or harmful posts.</p>
+    </div>
+
+    <label for="kind">What are you posting?</label>
+    <select id="kind">
+      <option value="report">I see fire or smoke</option>
+      <option value="question">Question or need help</option>
+      <option value="alert" disabled>Official alert (verified only)</option>
+    </select>
+
+    <label for="name">Your name or unit (optional)</label>
+    <input id="name" maxlength="40" placeholder="e.g. Maria, Engine 12, NWS Sacramento">
+
+    <label>Location</label>
+    <div class="locrow">
+      <span id="locText">Click the map to drop a pin.</span>
+      <button id="gpsBtn" type="button">My location</button>
+      <button id="clearLoc" type="button" hidden aria-label="Clear location"></button>
+    </div>
+
+    <label for="text">Message</label>
+    <textarea id="text" maxlength="1000" placeholder="What do you see? e.g. Thick smoke rising behind the ridge east of town, wind pushing it north."></textarea>
+    <p class="hint" id="textHint">Say what, where and which direction it's moving. Don't post personal details.</p>
+
+    <div id="replyBox" class="hint" hidden></div>
+    <div style="margin-top:12px"><button class="primary" id="sendBtn" style="width:100%">Post</button></div>
+    <div class="err" id="err" role="status"></div>
+  </section>
+
+  <section style="min-width:0">
+    <div class="alerts" id="alerts" aria-label="Active official alerts"></div>
+    <div class="card" style="margin-bottom:14px">
+      <div id="map" role="region" aria-label="Map of reports. Click to choose a location."></div>
+      <p class="hint"><span class="dot" style="background:#b22222"></span>official alert · <span class="dot" style="background:#ff8c00"></span>fire/smoke report · <span class="dot" style="background:#00bfff"></span>question. Purple squares: our 30-day fire-likelihood forecast. Click a pin to read it.</p>
+    </div>
+    <div class="card">
+      <div class="feedbar" role="group" aria-label="Filter messages">
+        <button data-f="all" aria-pressed="true">All</button>
+        <button data-f="alert" aria-pressed="false">Alerts</button>
+        <button data-f="report" aria-pressed="false">Fire reports</button>
+        <button data-f="question" aria-pressed="false">Questions</button>
+        <button data-f="verified" aria-pressed="false">Verified only</button>
+      </div>
+      <div id="feed" aria-live="polite"></div>
+    </div>
+  </section>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const store={get(k){try{return localStorage.getItem(k)}catch{return null}},set(k,v){try{localStorage.setItem(k,v)}catch{}}};
+const ui={role:'civilian',filter:'all',loc:null,replyTo:null};
+const msgs=new Map(); let lastId=0, removed=new Set(), serverOk=false;
+const KIND={alert:'Official alert',report:'Fire/smoke report',question:'Question',reply:'↳ Reply'};
+const ROLE={civilian:'Member of public',forecaster:'Forecaster',responder:'First responder'};
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function ago(t){const s=Math.max(0,Date.now()/1000-t); if(s<60)return 'just now'; if(s<3600)return Math.floor(s/60)+' min ago'; if(s<86400)return Math.floor(s/3600)+' h ago'; return new Date(t*1000).toLocaleString();}
+
+// ---- form ----
+$('name').value=store.get('fc_name')||'';
+document.querySelectorAll('#roleSeg button').forEach(b=>b.onclick=()=>{
+  ui.role=b.dataset.role;
+  document.querySelectorAll('#roleSeg button').forEach(x=>x.setAttribute('aria-pressed',x===b));
+  const v=ui.role!=='civilian'; $('codeBox').hidden=!v;
+  $('kind').querySelector('[value=alert]').disabled=!v;
+  if(!v && $('kind').value==='alert') $('kind').value='report';
+  if(v && !ui.replyTo) $('kind').value='alert';
+  updateHints();
+});
+$('kind').onchange=updateHints;
+function updateHints(){
+  const k=$('kind').value;
+  $('text').placeholder= k==='alert' ? 'e.g. EVACUATION ORDER: Zones 4 and 5 leave now via Highway 70 south. Shelter at the county fairgrounds.'
+    : k==='question' ? 'e.g. Is the road to the north still open? Is it safe to stay in Paradise tonight?'
+    : 'What do you see? e.g. Thick smoke rising behind the ridge east of town, wind pushing it north.';
+  $('textHint').textContent= k==='report' ? 'Fire reports need a location. Say what, where and which direction it\'s moving.'
+    : k==='alert' ? 'Alerts stay pinned at the top for everyone. Add a location so it shows on the map.'
+    : 'Add a location if your question is about a place. Don\'t post personal details.';
+}
+updateHints();
+
+function setLoc(lng,lat,how){
+  ui.loc={lat:+lat.toFixed(4),lon:+lng.toFixed(4)};
+  $('locText').textContent=`${how}: ${ui.loc.lat}, ${ui.loc.lon}`; $('clearLoc').hidden=false;
+  if(map&&map.getSource('pick')) map.getSource('pick').setData({type:'Feature',geometry:{type:'Point',coordinates:[lng,lat]}});
+}
+$('clearLoc').onclick=()=>{ ui.loc=null; $('locText').textContent='Click the map to drop a pin.'; $('clearLoc').hidden=true;
+  if(map&&map.getSource('pick')) map.getSource('pick').setData({type:'FeatureCollection',features:[]}); };
+$('gpsBtn').onclick=()=>{
+  if(!navigator.geolocation){ $('err').textContent='Your browser can\'t share location. Click the map instead.'; return; }
+  $('locText').textContent='Finding you…';
+  navigator.geolocation.getCurrentPosition(p=>{ setLoc(p.coords.longitude,p.coords.latitude,'My location'); map&&map.flyTo({center:[p.coords.longitude,p.coords.latitude],zoom:9}); },
+    ()=>{ $('locText').textContent='Location blocked. Click the map instead.'; },{enableHighAccuracy:true,timeout:10000});
+};
+
+function startReply(id){
+  const m=msgs.get(id); if(!m) return;
+  ui.replyTo=id; $('kind').disabled=true;
+  $('replyBox').hidden=false;
+  $('replyBox').innerHTML=`Replying to <b>${esc(m.name)}</b>: “${esc(m.text.slice(0,80))}${m.text.length>80?'…':''}” <button type="button" id="cancelReply" style="padding:2px 8px;font-size:12px">Cancel</button>`;
+  $('cancelReply').onclick=cancelReply; $('text').focus();
+}
+function cancelReply(){ ui.replyTo=null; $('kind').disabled=false; $('replyBox').hidden=true; }
+
+$('sendBtn').onclick=async()=>{
+  $('err').textContent='';
+  const body={kind:ui.replyTo?'reply':$('kind').value, role:ui.role, name:$('name').value.trim(), text:$('text').value.trim(), code:$('code').value};
+  if(ui.replyTo) body.reply_to=ui.replyTo;
+  if(ui.loc){ body.lat=ui.loc.lat; body.lon=ui.loc.lon; }
+  if(!body.text){ $('err').textContent='Write a message first.'; return; }
+  store.set('fc_name',body.name);
+  $('sendBtn').disabled=true;
+  try{
+    const r=await fetch('/api/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const j=await r.json().catch(()=>({error:'The server did not answer. Is server.py running?'}));
+    if(!r.ok){ $('err').textContent=j.error||('Error '+r.status); return; }
+    $('text').value=''; cancelReply(); $('clearLoc').click();
+    await poll();
+  }catch{ $('err').textContent='Could not reach the server. Messages need server.py running.'; }
+  finally{ $('sendBtn').disabled=false; }
+};
+
+// ---- feed ----
+document.querySelectorAll('.feedbar button').forEach(b=>b.onclick=()=>{
+  ui.filter=b.dataset.f; document.querySelectorAll('.feedbar button').forEach(x=>x.setAttribute('aria-pressed',x===b)); render();
+});
+function card(m,isReply){
+  const tag=m.verified?`<span class="tag verified">Verified ${ROLE[m.role].toLowerCase()}</span>`:`<span class="tag unverified">${ROLE[m.role]} · unverified</span>`;
+  let ctx='';
+  if(m.lat!=null){
+    const parts=[`${m.lat}, ${m.lon} <a href="#" data-fly="${m.id}">show on map</a>`];
+    if(m.forecast) parts.push(`Fire forecast here: <b>${Math.round(m.forecast.p*100)}%</b> chance in ${m.forecast.valid_from} → ${m.forecast.valid_to} (usual ${Math.round(m.forecast.usual*100)}%, ${esc(m.forecast.model)} model)`);
+    if(m.weather){ const w=m.weather, kmh=v=>Math.round(v*3.6);
+      parts.push(`Weather when posted: ${Math.round(w.temp_c)}°C, humidity ${w.humidity}%, wind ${kmh(w.wind_ms)} km/h${w.gust_ms?` (gusts ${kmh(w.gust_ms)})`:''}; next 5 days rain ${w.next5.rain_mm} mm`); }
+    ctx=`<div class="ctx">${parts.join('<br>')}</div>`;
+  }
+  const kids=isReply?'':[...msgs.values()].filter(x=>x.reply_to===m.id&&!removed.has(x.id)).sort((a,b)=>a.id-b.id).map(x=>card(x,true)).join('');
+  const canMod=ui.role!=='civilian'&&$('code').value;
+  return `<article class="msg ${m.kind}">
+    <div class="top"><span class="who">${esc(m.name)}</span>${tag}${isReply?'':`<span class="tag k-${m.kind}">${KIND[m.kind]}</span>`}<span>${ago(m.time)}</span></div>
+    <div class="text">${esc(m.text)}</div>${ctx}
+    <div class="acts">${isReply?'':`<button data-reply="${m.id}">Reply</button>`}${canMod?`<button data-del="${m.id}" title="Remove a false or harmful post">Remove</button>`:''}</div>
+    ${kids?`<div class="replies">${kids}</div>`:''}</article>`;
+}
+function render(){
+  const all=[...msgs.values()].filter(m=>!removed.has(m.id));
+  const top=all.filter(m=>m.kind!=='reply');
+  const alerts=top.filter(m=>m.kind==='alert'&&m.verified&&Date.now()/1000-m.time<86400*3).sort((a,b)=>b.id-a.id);
+  $('alerts').innerHTML=alerts.map(m=>card(m,false)).join('');
+  let list=top.filter(m=>!(m.kind==='alert'&&alerts.includes(m)));
+  if(ui.filter==='verified') list=list.filter(m=>m.verified);
+  else if(ui.filter!=='all') list=list.filter(m=>m.kind===ui.filter);
+  if(ui.filter==='alert') list=top.filter(m=>m.kind==='alert');
+  list.sort((a,b)=>b.id-a.id);
+  $('feed').innerHTML=list.length?list.map(m=>card(m,false)).join(''):`<div class="empty">${serverOk?'No messages yet. Be the first to post.':'Can\'t reach the message server. Run <code>python server.py</code> and open http://localhost:8000/connect.html.'}</div>`;
+  updatePins(all);
+}
+document.addEventListener('click',e=>{
+  const r=e.target.closest('[data-reply]'), d=e.target.closest('[data-del]'), f=e.target.closest('[data-fly]');
+  if(r) startReply(+r.dataset.reply);
+  if(d && confirm('Remove this post for everyone?')) fetch('/api/messages/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:+d.dataset.del,code:$('code').value})})
+      .then(r=>r.json()).then(j=>{ if(j.error) $('err').textContent=j.error; else { removed.add(+d.dataset.del); render(); } });
+  if(f){ e.preventDefault(); const m=msgs.get(+f.dataset.fly); if(m&&map){ map.flyTo({center:[m.lon,m.lat],zoom:10}); $('map').scrollIntoView({behavior:'smooth',block:'center'}); } }
+});
+
+async function poll(){
+  try{
+    const r=await fetch('/api/messages?since='+lastId,{cache:'no-store'});
+    if(!r.ok) throw 0;
+    const j=await r.json(); serverOk=true;
+    j.messages.forEach(m=>{ msgs.set(m.id,m); lastId=Math.max(lastId,m.id); });
+    removed=new Set(j.removed);
+    $('live').innerHTML=`<b>● live</b> · updated ${new Date().toLocaleTimeString()}`;
+    if(!j.verified_posting) $('codeBox').querySelector('.hint').textContent='Verified posting is off: add RESPONDER_CODE=... to .env on the server.';
+  }catch{ serverOk=false; $('live').textContent='offline: messages need server.py'; }
+  render();
+}
+
+// ---- map ----
+let map=null;
+function updatePins(all){
+  if(!map||!map.getSource('msgs')) return;
+  map.getSource('msgs').setData({type:'FeatureCollection',features:all.filter(m=>m.lat!=null&&m.kind!=='reply').map(m=>({type:'Feature',
+    geometry:{type:'Point',coordinates:[m.lon,m.lat]},properties:{id:m.id,kind:m.kind}}))});
+}
+try{
+  map=new maplibregl.Map({container:'map',style:'https://tiles.openfreemap.org/styles/liberty',center:[-30,15],zoom:1.4});
+  map.addControl(new maplibregl.NavigationControl(),'top-right');
+  map.on('load',async()=>{
+    map.addSource('risk',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+    map.addLayer({id:'risk',type:'fill',source:'risk',paint:{'fill-color':'#9932cc','fill-opacity':['*',0.55,['get','p']]}});
+    map.addSource('msgs',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+    map.addLayer({id:'msgs',type:'circle',source:'msgs',paint:{
+      'circle-radius':['match',['get','kind'],'alert',10,8],'circle-stroke-width':2,'circle-stroke-color':'#fff',
+      'circle-color':['match',['get','kind'],'alert','#b22222','report','#ff8c00','#00bfff']}});
+    map.addSource('pick',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+    map.addLayer({id:'pick',type:'circle',source:'pick',paint:{'circle-radius':7,'circle-color':'#00bfff','circle-stroke-width':3,'circle-stroke-color':'#1a1006'}});
+    updatePins([...msgs.values()].filter(m=>!removed.has(m.id)));
+    loadRisk();
+  });
+  map.on('click',e=>{
+    const hit=map.queryRenderedFeatures(e.point,{layers:['msgs']})[0];
+    if(hit){ const m=msgs.get(hit.properties.id); if(!m) return;
+      new maplibregl.Popup().setLngLat([m.lon,m.lat]).setHTML(`<b>${KIND[m.kind]}</b>${m.verified?' · verified':''}<br>${esc(m.name)} · ${ago(m.time)}<br>${esc(m.text.slice(0,200))}`).addTo(map);
+      return; }
+    setLoc(e.lngLat.lng,e.lngLat.lat,'Pin');
+  });
+  map.on('mouseenter','msgs',()=>map.getCanvas().style.cursor='pointer');
+  map.on('mouseleave','msgs',()=>map.getCanvas().style.cursor='');
+}catch(e){ $('map').innerHTML='<p class="empty">The map could not start in this browser. You can still post using My location.</p>'; }
+
+async function loadRisk(){            // the same 30-day forecast squares as the main page, faint, for context
+  try{
+    const idx=await (await fetch('predictions/index.json')).json();
+    const files=await Promise.all(idx.map(e=>fetch('predictions/'+e.region+'.json').then(r=>r.json()).then(f=>({...f,world:e.region==='world'}))));
+    const covered=new Set(); const feats=[];
+    files.sort((a,b)=>a.world-b.world).forEach(f=>f.cells.forEach(([w,s,p])=>{
+      const k=Math.floor(w+1e-9)+','+Math.floor(s+1e-9);
+      if(f.world&&covered.has(k)) return; if(!f.world) covered.add(k);
+      if(p<0.2) return;
+      feats.push({type:'Feature',properties:{p},geometry:{type:'Polygon',coordinates:[[[w,s],[w+f.cell,s],[w+f.cell,s+f.cell],[w,s+f.cell],[w,s]]]}});
+    }));
+    map.getSource('risk').setData({type:'FeatureCollection',features:feats});
+  }catch{}
+}
+
+poll(); setInterval(poll,5000); setInterval(render,60000);
+</script>
+</body>
+</html>

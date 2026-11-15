@@ -1,0 +1,1276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MovBAC — Harmonized MODIS + VIIRS fire activity</title>
+<link href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<script src="theme.js"></script>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  header{display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--line);background:var(--panel)}
+  header h1{font-size:18px;margin:0;font-weight:650}
+  header .sub{color:var(--muted);font-size:13px}
+  header .spacer{flex:1}
+  .badge{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--accent);color:var(--accent)}
+  button,select,input{font:inherit;color:var(--text);background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+  button{cursor:pointer}
+  button:hover{border-color:var(--accent)}
+  button.primary{background:var(--accent);color:#1a1006;border-color:var(--accent);font-weight:600}
+  button.active{border-color:var(--accent);color:var(--accent)}
+  button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent2);outline-offset:1px}
+  .layout{display:grid;grid-template-columns:300px 1fr;min-height:calc(100vh - 57px)}
+  aside{border-right:1px solid var(--line);background:var(--panel);padding:14px;overflow:auto}
+  aside h2{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:18px 0 8px}
+  aside h2:first-child{margin-top:0}
+  .row{display:flex;gap:6px;margin-bottom:6px}
+  .row > *{flex:1;min-width:0}
+  label.small{display:block;font-size:12px;color:var(--muted);margin-bottom:2px}
+  .seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .seg button{flex:1;border:0;border-radius:0;background:transparent;padding:7px 4px;font-size:13px}
+  .seg button[aria-pressed="true"]{background:var(--accent);color:#1a1006;font-weight:600}
+  .hint{font-size:12px;color:var(--muted);margin:4px 0 0}
+  main{padding:14px;display:grid;gap:14px;grid-template-columns:repeat(12,1fr);align-content:start}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;min-width:0}
+  .card h3{margin:0 0 6px;font-size:14px;font-weight:600}
+  .card .desc{color:var(--muted);font-size:12px;margin:0 0 8px}
+  .span12{grid-column:span 12}.span7{grid-column:span 7}.span5{grid-column:span 5}.span6{grid-column:span 6}
+  #map{height:420px;border-radius:8px}
+  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+  .kpi{background:var(--panel2);border-radius:10px;padding:10px}
+  .kpi .v{font-size:22px;font-weight:700}
+  .kpi .l{font-size:12px;color:var(--muted)}
+  .up{color:var(--bad)} .down{color:var(--good)}
+  #calendar{height:560px}
+  #trend,#profile{height:300px}
+  details{background:var(--panel2);border-radius:8px;padding:8px 10px;margin-top:8px}
+  details summary{cursor:pointer;font-weight:600}
+  details p,details li{color:#dcd8cc;font-size:13px}
+  .maptools{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;align-items:center}
+  .drawing #map{cursor:crosshair}
+  .legend-note{font-size:12px;color:var(--muted)}
+  .maplibregl-popup-content{background:#1f3333;color:#fffaf0;font-size:12px}
+  .maplibregl-popup-tip{border-top-color:#1f3333 !important}
+  .ol-head{display:flex;gap:12px;justify-content:space-between;align-items:flex-start;flex-wrap:wrap}
+  .ol-actions{display:flex;gap:6px;flex-wrap:wrap}
+  .ol-grid{display:grid;grid-template-columns:minmax(260px,340px) 1fr;gap:14px;margin-top:6px}
+  .ol-verdict{background:var(--panel2);border:1px solid var(--glass-border,var(--line));border-radius:14px;padding:14px}
+  .ol-place{font-weight:650;font-size:15px}
+  .ol-sub{color:var(--muted);font-size:12px}
+  .ol-level{font-size:30px;font-weight:800;margin:10px 0 0;line-height:1.1}
+  .ol-chance{color:var(--muted);font-size:13px;margin-bottom:8px}
+  .ol-meter{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin:6px 0 4px}
+  .ol-meter span{height:8px;border-radius:4px;opacity:.3}
+  .ol-meter span.on{opacity:1;box-shadow:0 0 8px currentColor}
+  .ol-scale{display:grid;grid-template-columns:repeat(4,1fr);font-size:11px;color:var(--muted)}
+  .ol-sus{margin-top:12px;font-weight:600}
+  .ol-profile{margin-top:8px;width:100%;height:auto}
+  .ol-reasons h4{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+  .ol-reasons ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+  .ol-reasons li{display:grid;grid-template-columns:22px 1fr;gap:8px;background:var(--panel2);border:1px solid var(--glass-border,var(--line));border-radius:12px;padding:9px 11px}
+  .ol-ico{font-weight:800;font-size:13px;line-height:1.5;text-align:center}
+  .ol-t{font-weight:600}
+  .ol-d{color:var(--text2);font-size:12.5px;margin-top:2px}
+  .ol-w{font-size:10.5px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:0 6px;margin-left:6px;vertical-align:1px;font-weight:400}
+  .ol-notes{color:var(--muted);font-size:11.5px;margin-top:10px}
+  .picking #map{cursor:crosshair}
+  @media (max-width:800px){ .ol-grid{grid-template-columns:1fr} }
+  .ctrl-3d button{font:800 12px/1 system-ui,sans-serif;letter-spacing:.02em;color:#333}
+  .ctrl-3d button.on{background:#ff8c00 !important;color:#1a1006}
+  #g3dCredits{position:absolute;left:8px;bottom:30px;z-index:3;display:none;max-width:70%;font-size:11px;line-height:1.3;
+    padding:3px 8px;border-radius:6px;background:rgba(255,255,255,.85);color:#222;pointer-events:none}
+  #g3dCredits b{font-weight:700;letter-spacing:.01em}
+  #toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#222;border:1px solid var(--accent);padding:8px 14px;border-radius:8px;display:none;z-index:9}
+  @media (max-width:1000px){
+    .layout{grid-template-columns:1fr}
+    aside{border-right:0;border-bottom:1px solid var(--line)}
+    .span7,.span5,.span6{grid-column:span 12}
+    .kpis{grid-template-columns:repeat(2,1fr)}
+  }
+</style>
+<link rel="stylesheet" href="theme.css">
+</head>
+<body>
+<header>
+  <h1>MovBAC</h1>
+  <span class="sub">Harmonized MODIS + VIIRS active-fire hotspots, 2012 to now</span>
+  <span class="spacer"></span>
+  <button id="themeBtn" class="theme-toggle" type="button">Light mode</button>
+  <a href="connect.html" style="color:var(--accent2);font-weight:600;text-decoration:none;border:1px solid var(--line);border-radius:8px;padding:5px 10px">Fire Connect</a>
+  <span class="badge" id="modeBadge" title="Data source currently in use">MOCK DATA</span>
+</header>
+
+<div class="layout">
+<aside aria-label="Controls">
+  <h2>1 · Area of interest</h2>
+  <div class="row">
+    <select id="preset" aria-label="Preset regions">
+      <option value="">Choose a preset…</option>
+      <option value="-82.2,27.6,-80.6,29.2">Central Florida</option>
+      <option value="-81.6,25.1,-80.2,26.4">Everglades, FL</option>
+      <option value="-123.0,38.0,-120.0,41.0">Northern California</option>
+      <option value="-62.0,-12.0,-55.0,-7.0">Mato Grosso, Brazil</option>
+      <option value="21.0,-12.0,27.0,-7.0">Southern DR Congo</option>
+      <option value="74.0,29.5,77.5,32.0">Punjab, India</option>
+      <option value="112.0,-44.0,154.0,-10.0" data-start="2019-09-01" data-end="2020-02-29">Australia: Black Summer (Sep 2019–Feb 2020)</option>
+    </select>
+  </div>
+  <div class="row">
+    <div><label class="small" for="west">West (lon)</label><input id="west" type="number" step="0.01"></div>
+    <div><label class="small" for="east">East (lon)</label><input id="east" type="number" step="0.01"></div>
+  </div>
+  <div class="row">
+    <div><label class="small" for="south">South (lat)</label><input id="south" type="number" step="0.01"></div>
+    <div><label class="small" for="north">North (lat)</label><input id="north" type="number" step="0.01"></div>
+  </div>
+  <div class="row">
+    <button id="applyBox">Apply coordinates</button>
+    <button id="drawBtn" title="Click, then drag a box on the map">Draw on map</button>
+  </div>
+  <p class="hint">Draw a box on the map, type coordinates, or pick a preset.</p>
+
+  <h2>2 · Date range</h2>
+  <div class="row">
+    <div><label class="small" for="start">From</label><input id="start" type="date"></div>
+    <div><label class="small" for="end">To</label><input id="end" type="date"></div>
+  </div>
+  <p class="hint">Filters the map points, the stats, and the CSV. The calendar always shows the full record so you keep the historical context.</p>
+
+  <h2>3 · Calendar view</h2>
+  <div class="seg" role="group" aria-label="Calendar view">
+    <button data-view="harmonized" aria-pressed="true">Harmonized</button>
+    <button data-view="raw" aria-pressed="false">Raw</button>
+    <button data-view="anomaly" aria-pressed="false">Anomaly</button>
+  </div>
+  <p class="hint" id="viewHint"></p>
+
+  <h2>4 · Export</h2>
+  <div class="row"><button class="primary" id="csvBtn">Download hotspots CSV</button></div>
+  <div class="row"><button id="csvMonthlyBtn">Download monthly calendar CSV</button></div>
+
+  <details>
+    <summary>How to read this</summary>
+    <ul>
+      <li><b>Hotspot</b> = one satellite pixel where a sensor saw unusually hot ground, usually a fire.</li>
+      <li><b>MODIS</b> (1 km pixels, since 2000) is being retired. <b>VIIRS</b> (375 m pixels, since 2012) sees smaller fires, so it reports more hotspots for the same fires.</li>
+      <li><b>Raw</b> view switches sensors in 2012, so you'll see a fake "jump" that has nothing to do with real fires.</li>
+      <li><b>Harmonized</b> converts the old MODIS counts into VIIRS-equivalent counts, so the whole 2001→today record is on one scale.</li>
+      <li><b>Anomaly</b> shows each month compared with the median of the same month in all years. Orange is busier than normal and purple is quieter.</li>
+    </ul>
+  </details>
+</aside>
+
+<main>
+  <section class="card span12" aria-label="Key figures">
+    <div class="kpis" id="kpis"></div>
+  </section>
+
+  <section class="card span12">
+    <h3>Map</h3>
+    <div class="maptools">
+      <div class="seg" role="group" aria-label="Basemap" style="max-width:380px">
+        <button data-base="streets" aria-pressed="true">Streets</button>
+        <button data-base="satellite" aria-pressed="false">Satellite</button>
+        <button data-base="nasa" aria-pressed="false" title="Yesterday's NASA VIIRS image: shows smoke and burn scars">NASA daily</button>
+      </div>
+      <button id="riskBtn" aria-pressed="false" title="Machine-learning forecast: chance of fire in each square over the next 30 days">Fire likelihood (30 days)</button>
+      <span class="legend-note" id="pointNote"></span>
+    </div>
+    <div id="map" role="region" aria-label="Map of hotspots"></div>
+    <p class="legend-note" style="margin:6px 0 0">Dots show hotspots in the selected date range, colored by Fire Radiative Power (FRP = how much heat the fire gives off, in megawatts). Click a dot for details. The <b>3D</b> button under + / − tilts the map over the spot you are looking at: zoomed out you get terrain with a fire heat map draped over it, zoomed in to a city you get 3D buildings (photorealistic Google 3D when it is set up), with the fire dots placed on them. When there are more than 5,000 detections, the map shows colored squares instead: each square counts every detection inside it (darker red = more), and you can click a square for its numbers.</p>
+    <div id="riskInfo" class="legend-note" style="display:none;margin-top:8px;padding:8px 10px;border:1px solid #8c6bb1;border-radius:8px"></div>
+  </section>
+
+  <section class="card span12" id="outlookCard" aria-labelledby="outlookTitle">
+    <div class="ol-head">
+      <div>
+        <h3 id="outlookTitle">Wildfire outlook</h3>
+        <p class="desc">Is this place prone to seasonal wildfire, and how likely is a fire in the next 30 days? Built from its fire history since 2012 (the most important part), the long-term climate, this week's weather and our ML forecast.</p>
+      </div>
+      <div class="ol-actions">
+        <button id="olPick" type="button">Pick a place on the map</button>
+        <button id="olCenter" type="button">Center of my area</button>
+      </div>
+    </div>
+    <div id="olBody" aria-live="polite"><p class="legend-note">Loading…</p></div>
+  </section>
+
+  <section class="card span12">
+    <h3 id="calTitle">Burning activity calendar</h3>
+    <p class="desc" id="calDesc"></p>
+    <div id="calendar" role="img" aria-label="Calendar heatmap of monthly hotspot counts by year"></div>
+  </section>
+
+  <section class="card span7">
+    <h3>Yearly totals: why harmonization matters</h3>
+    <p class="desc">Raw MODIS and raw VIIRS disagree for the same fires (VIIRS sees about 3–5× more). The thick harmonized line uses VIIRS where we have it and scaled-up MODIS everywhere else, so all years and places are on one scale.</p>
+    <div id="trend"></div>
+  </section>
+
+  <section class="card span5">
+    <h3>Fire season profile</h3>
+    <p class="desc">Historical median per month vs. the latest year. Shows which part of the year is critical.</p>
+    <div id="profile"></div>
+  </section>
+
+  <section class="card span12">
+    <h3>Harmonization method</h3>
+    <p class="desc" id="methodText"></p>
+  </section>
+</main>
+</div>
+<div id="toast" role="status"></div>
+
+<script>
+/* =====================================================================
+   CONFIG
+   ===================================================================== */
+const CONFIG = {
+  // 'mock' = generated demo data in the browser.
+  // 'api'  = your backend (FastAPI etc.). See README.md for the contract.
+  DATA_MODE: 'mock',
+  // Real FIRMS hotspots come from /api/hotspots (server.py locally, or the Vercel function).
+  // The FIRMS key lives on that server, never in this file.
+  LIVE_HOTSPOTS: true,
+  LIVE_DEFAULT_DAYS: 30,
+  API_BASE: 'http://localhost:8000',
+  FIRST_YEAR: 2001,
+  VIIRS_START_YEAR: 2012,
+  LAST_COMPLETE: { year: 2026, month: 10 },   // last full month of data
+  MAX_MAP_POINTS: 5000,
+  MAX_CSV_ROWS: 50000,
+  DEFAULT_BBOX: [-82.2, 27.6, -80.6, 29.2],   // Central Florida [W,S,E,N]
+};
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+/* =====================================================================
+   DATA LAYER: the only part that changes when real data arrives.
+   Both functions return the shapes documented in README.md.
+   ===================================================================== */
+const DataAPI = {
+  /** Monthly series for a bbox.
+   *  → { rows:[{year,month,modis_count,viirs_count,harmonized_count}], method:{...} } */
+  async getMonthly(bbox) {
+    if (state.live) {                       // server.py: real FIRMS monthly counts (built by ml/monthly.py)
+      try {
+        const r = await fetch(`/api/monthly?bbox=${bbox.join(',')}`);
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error || r.status);
+        const [fy] = j.method.first_month.split('-').map(Number);
+        const [ly, lm] = j.method.last_complete.split('-').map(Number);
+        CONFIG.FIRST_YEAR = fy; CONFIG.LAST_COMPLETE = {year: ly, month: lm};
+        state.realMonthly = true;
+        return j;
+      } catch (e) {
+        console.error(e); state.realMonthly = false;
+        toast('Real calendar data unavailable, showing demo data (' + e.message + ')');
+      }
+    }
+    if (CONFIG.DATA_MODE === 'api') {
+      const r = await fetch(`${CONFIG.API_BASE}/monthly?bbox=${bbox.join(',')}`);
+      if (!r.ok) throw new Error('monthly request failed: ' + r.status);
+      return r.json();
+    }
+    return Mock.monthly(bbox);
+  },
+  /** Individual hotspots (FIRMS-style rows) in bbox + date range.
+   *  → { rows:[{latitude,longitude,acq_date,acq_time,instrument,satellite,confidence,frp,daynight}], sampled:bool, total:int } */
+  async getHotspots(bbox, start, end, limit) {
+    if (CONFIG.DATA_MODE === 'api') {
+      const q = `bbox=${bbox.join(',')}&start=${start}&end=${end}&limit=${limit}`;
+      const r = await fetch(`${CONFIG.API_BASE}/hotspots?${q}`);
+      if (!r.ok) throw new Error('hotspots request failed: ' + r.status);
+      return r.json();
+    }
+    if (state.live) {
+      try {
+        const q = `bbox=${bbox.join(',')}&start=${start}&end=${end}&limit=${limit}`;
+        const r = await fetch(`/api/hotspots?${q}`);
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error || r.status);
+        if (j.warnings && j.warnings.length) console.warn('FIRMS warnings', j.warnings);
+        return {...j, live:true};
+      } catch (e) {
+        console.error(e);
+        toast('Couldn\'t reach NASA FIRMS, so showing mock dots (' + e.message + ')');
+      }
+    }
+    return Mock.hotspots(bbox, start, end, limit);
+  }
+};
+
+/** Is the FIRMS helper (server.py or Vercel function) running? */
+async function detectLive(){
+  if (!CONFIG.LIVE_HOTSPOTS || !location.protocol.startsWith('http')) return false;
+  try {
+    const ctl = new AbortController(); setTimeout(()=>ctl.abort(), 3000);
+    const r = await fetch('/api/status',{signal:ctl.signal});
+    if (!r.ok) return false;
+    const j = await r.json();
+    state.weather = !!j.weather;
+    g3d.available = !!j.google3d;
+    if (!j.live) return false;
+    state.live = true; state.today = j.today;
+    const end = new Date(j.today+'T00:00:00Z'), start = new Date(+end - (CONFIG.LIVE_DEFAULT_DAYS-1)*864e5);
+    state.end = j.today; state.start = start.toISOString().slice(0,10);
+    $('start').value = state.start; $('end').value = state.end; $('start').max = $('end').max = j.today;
+    return true;
+  } catch { return false; }
+}
+
+/* =====================================================================
+   MOCK DATA: fake but realistic-shaped numbers so the UI can be built
+   before the harmonized dataset exists. NOT real fire data.
+   ===================================================================== */
+const Mock = (() => {
+  function hash(str){let h=2166136261;for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
+  function rng(seed){let s=seed>>>0;return()=>{s=(s+0x6D2B79F5)>>>0;let t=s;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return((t^(t>>>14))>>>0)/4294967296;};}
+  function gauss(r){let u=0,v=0;while(!u)u=r();while(!v)v=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+  const key = b => b.map(x=>x.toFixed(2)).join(',');
+
+  // "True" VIIRS/MODIS detection ratio by month (VIIRS sees more small fires).
+  const TRUE_RATIO = MONTHS.map((_,m)=>3.4 + 0.6*Math.sin((m-2)/12*2*Math.PI));
+
+  const cache = new Map();
+  function monthly(bbox){
+    const k = key(bbox); if (cache.has(k)) return cache.get(k);
+    const [w,s,e,n] = bbox;
+    const r = rng(hash(k));
+    const area = Math.max(0.01,(e-w)*(n-s));
+    const lat = (n+s)/2;
+    const peak = lat>=23&&lat<=36 ? 3 : lat>36 ? 7 : lat>=0 ? 2 : 8;   // month index of fire peak
+    const base = area*28;
+    const fixedBadYears = {2007:1.9, 2011:2.1, 2017:1.8};               // demo "drought years"
+    const yearF = {};
+    for (let y=CONFIG.FIRST_YEAR;y<=CONFIG.LAST_COMPLETE.year;y++)
+      yearF[y] = Math.exp(gauss(r)*0.22) * (fixedBadYears[y]||1) * (1+0.008*(y-CONFIG.FIRST_YEAR));
+    const rows = [];
+    for (let y=CONFIG.FIRST_YEAR;y<=CONFIG.LAST_COMPLETE.year;y++){
+      for (let m=0;m<12;m++){
+        if (y===CONFIG.LAST_COMPLETE.year && m+1>CONFIG.LAST_COMPLETE.month) break;
+        let d = Math.abs(m-peak); d=Math.min(d,12-d);
+        const season = 0.18 + 1.7*Math.exp(-(d*d)/(2*1.5*1.5));
+        const truth = base*season*yearF[y]*Math.exp(gauss(r)*0.18);
+        const modis = Math.max(0,Math.round(truth*Math.exp(gauss(r)*0.08)));
+        const viirs = y>=CONFIG.VIIRS_START_YEAR ? Math.max(0,Math.round(truth*TRUE_RATIO[m]*Math.exp(gauss(r)*0.10))) : null;
+        rows.push({year:y,month:m+1,modis_count:modis,viirs_count:viirs,harmonized_count:null});
+      }
+    }
+    const method = harmonize(rows);
+    const out = {rows, method};
+    cache.set(k,out); return out;
+  }
+
+  // Same idea your real pipeline would use: monthly VIIRS/MODIS ratio from the overlap years,
+  // fit on 2012–2018, tested on 2019→latest, then MODIS-only years scaled into VIIRS units.
+  function harmonize(rows){
+    const fitY=[2012,2018];
+    const ratio = MONTHS.map((_,mi)=>{
+      const ok = rows.filter(r=>r.month===mi+1&&r.year>=fitY[0]&&r.year<=fitY[1]&&r.modis_count>0);
+      const sv=ok.reduce((a,r)=>a+r.viirs_count,0), sm=ok.reduce((a,r)=>a+r.modis_count,0);
+      return sm>0? sv/sm : 3.5;
+    });
+    let errs=[];
+    rows.forEach(r=>{
+      if (r.year>fitY[1] && r.viirs_count!=null){
+        const pred=r.modis_count*ratio[r.month-1];
+        if (r.viirs_count>20) errs.push(Math.abs(pred-r.viirs_count)/r.viirs_count);
+      }
+      r.harmonized_count = r.year<CONFIG.VIIRS_START_YEAR
+        ? Math.round(r.modis_count*ratio[r.month-1])
+        : r.viirs_count;
+    });
+    errs.sort((a,b)=>a-b);
+    const medErr = errs.length? errs[Math.floor(errs.length/2)] : null;
+    return {
+      units:'VIIRS-equivalent hotspots',
+      ratio_by_month: ratio.map(x=>+x.toFixed(2)),
+      fit_years: fitY, test_years:[fitY[1]+1, CONFIG.LAST_COMPLETE.year],
+      median_abs_pct_error: medErr==null?null:+(medErr*100).toFixed(1)
+    };
+  }
+
+  function hotspots(bbox,start,end,limit){
+    const {rows} = monthly(bbox);
+    const [w,s,e,n]=bbox;
+    const r = rng(hash(key(bbox)+start+end));
+    // a few persistent "burn areas" inside the box
+    const cr = rng(hash(key(bbox)+'centers'));
+    const centers = Array.from({length:6},()=>({x:w+(e-w)*(0.1+0.8*cr()), y:s+(n-s)*(0.1+0.8*cr()), sd:0.03+0.12*cr()*Math.min(e-w,n-s)}));
+    const sd=new Date(start), ed=new Date(end);
+    const months = rows.filter(row=>{
+      const a=new Date(Date.UTC(row.year,row.month-1,1)), b=new Date(Date.UTC(row.year,row.month,0));
+      return b>=sd && a<=ed;
+    });
+    // raw detections from BOTH sensors where they exist
+    let total=0; months.forEach(m=>{total+=m.modis_count+(m.viirs_count||0);});
+    const frac = Math.min(1, limit/Math.max(1,total));
+    const out=[];
+    for (const m of months){
+      const days = new Date(Date.UTC(m.year,m.month,0)).getUTCDate();
+      for (const [inst,cnt] of [['MODIS',m.modis_count],['VIIRS',m.viirs_count||0]]){
+        const nPts = Math.round(cnt*frac + (r()<(cnt*frac%1)?1:0));
+        for (let i=0;i<nPts;i++){
+          const day = 1+Math.floor(r()*days);
+          const date = new Date(Date.UTC(m.year,m.month-1,day));
+          if (date<sd||date>ed) continue;
+          let x,y;
+          if (r()<0.8){const c=centers[Math.floor(r()*centers.length)];x=c.x+gauss(r)*c.sd;y=c.y+gauss(r)*c.sd;}
+          else {x=w+r()*(e-w);y=s+r()*(n-s);}
+          x=Math.min(e,Math.max(w,x)); y=Math.min(n,Math.max(s,y));
+          const hh = r()<0.7 ? 13+Math.floor(r()*6) : 1+Math.floor(r()*5);   // most passes ~13:30 and ~01:30 local
+          const mm = Math.floor(r()*60);
+          const viirs = inst==='VIIRS';
+          out.push({
+            latitude:+y.toFixed(5), longitude:+x.toFixed(5),
+            acq_date: date.toISOString().slice(0,10),
+            acq_time: String(hh).padStart(2,'0')+String(mm).padStart(2,'0'),
+            instrument: inst,
+            satellite: viirs ? (m.year>=2024 && r()<0.5 ? 'N20' : 'N') : (r()<0.5?'Terra':'Aqua'),
+            confidence: viirs ? ['l','n','n','n','h'][Math.floor(r()*5)] : Math.round(30+r()*70),
+            frp: +(Math.exp(gauss(r)*0.9 + (viirs?1.4:2.6))).toFixed(1),
+            daynight: hh>=7&&hh<=19 ? 'D':'N'
+          });
+        }
+      }
+    }
+    out.sort((a,b)=>a.acq_date<b.acq_date?-1:1);
+    return {rows:out, sampled: frac<1, total};
+  }
+  return {monthly, hotspots};
+})();
+
+/* =====================================================================
+   STATE + HELPERS
+   ===================================================================== */
+const state = {
+  bbox: CONFIG.DEFAULT_BBOX.slice(),
+  start: null, end: null,
+  view: 'harmonized',
+  monthly: null, method: null, hotspots: null,
+  live: false, today: null,
+};
+const $ = id => document.getElementById(id);
+const fmt = n => n==null ? '–' : Math.round(n).toLocaleString();
+function toast(msg){const t=$('toast');t.textContent=msg;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',2600);}
+function median(a){if(!a.length)return null;const s=[...a].sort((x,y)=>x-y);const h=s.length>>1;return s.length%2?s[h]:(s[h-1]+s[h])/2;}
+function isoDate(y,m,d){return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;}
+
+// Colorblind-safe ramps (ColorBrewer YlOrRd sequential, PuOr diverging)
+const RAMP_SEQ = ['#ffffcc','#ffeda0','#fed976','#feb24c','#fd8d3c','#fc4e2a','#e31a1c','#bd0026','#800026'];
+const RAMP_DIV = ['#542788','#8073ac','#b2abd2','#d8daeb','#f7f7f7','#fee0b6','#fdb863','#e08214','#b35806'];
+
+function monthMedians(rows, field){
+  return MONTHS.map((_,mi)=>median(rows.filter(r=>r.month===mi+1 && r[field]!=null && !(r.year===CONFIG.LAST_COMPLETE.year)).map(r=>r[field])));
+}
+function rawValue(r){ return (r.year<CONFIG.VIIRS_START_YEAR || r.viirs_count==null) ? r.modis_count : r.viirs_count; }
+
+/* =====================================================================
+   MAP
+   ===================================================================== */
+function gibsDate(){const d=new Date(Date.now()-2*864e5);return d.toISOString().slice(0,10);}
+const HAS_MAP = typeof maplibregl !== 'undefined';
+let map = null;
+
+function mapMessage(html){
+  let el=document.getElementById('mapMsg');
+  if(!el){el=document.createElement('div');el.id='mapMsg';
+    el.style.cssText='position:absolute;inset:auto 12px 12px 12px;z-index:5;background:#2a1a10;border:1px solid var(--accent);border-radius:8px;padding:8px 12px;font-size:13px';
+    const m=$('map'); m.style.position='relative'; m.appendChild(el);}
+  el.innerHTML=html;
+}
+
+// Main basemap: OpenFreeMap (free, no API key, vector tiles with building heights → 3D buildings).
+const OFM_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
+// Backup if OpenFreeMap can't be reached: flat Esri street map (also no key).
+const FALLBACK_STYLE = {
+  version:8,
+  sources:{ esri:{type:'raster',tileSize:256,maxzoom:19,
+    tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}'],
+    attribution:'Tiles © Esri — Esri, HERE, Garmin, USGS, OpenStreetMap contributors'} },
+  layers:[{id:'bg',type:'background',paint:{'background-color':'#142121'}},{id:'esri',type:'raster',source:'esri'}]
+};
+
+let mapReady=false, usingFallback=false, fittedOnce=false;
+function useFallback(){
+  if(usingFallback||!map) return;
+  usingFallback=true; mapReady=false;
+  console.warn('OpenFreeMap unavailable, switching to flat Esri basemap');
+  map.setStyle(FALLBACK_STYLE);
+  toast('3D building map unavailable, so using a flat street map');
+}
+
+// Runs every time a style finishes loading (first load, and again after a fallback switch).
+function setupLayers(){
+  const layers=map.getStyle().layers||[];
+  const firstLabel=(layers.find(l=>l.type==='symbol')||{}).id;   // put our layers under the text labels
+
+  // Imagery options (hidden until chosen)
+  map.addSource('esriSat',{type:'raster',tileSize:256,maxzoom:19,
+    tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+    attribution:'Imagery © Esri, Maxar, Earthstar Geographics'});
+  map.addSource('gibs',{type:'raster',tileSize:256,maxzoom:9,
+    tiles:[`https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/${gibsDate()}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg`],
+    attribution:'Imagery: NASA GIBS / VIIRS'});
+  map.addLayer({id:'sat-esri',type:'raster',source:'esriSat',layout:{visibility:'none'}},firstLabel);
+  map.addLayer({id:'sat-gibs',type:'raster',source:'gibs',layout:{visibility:'none'}},firstLabel);
+
+  // 3D buildings (only exists on the OpenFreeMap style)
+  if(map.getSource('openmaptiles')){
+    if(!map.getLayer('building-3d')){
+      map.addLayer({id:'building-3d',type:'fill-extrusion',source:'openmaptiles','source-layer':'building',minzoom:14,
+        paint:{'fill-extrusion-color':['interpolate',['linear'],['coalesce',['get','render_height'],0],0,'#d6cfc4',60,'#b9b2a8',200,'#9c958c'],
+               'fill-extrusion-height':['coalesce',['get','render_height'],0],
+               'fill-extrusion-base':['coalesce',['get','render_min_height'],0],
+               'fill-extrusion-opacity':0.9}},firstLabel);
+    } else if(firstLabel){
+      map.moveLayer('building-3d',firstLabel);   // keep buildings above the satellite layers
+    }
+    // The style draws buildings 80% see-through, so stacked roof pieces (e.g. the Opera House shells,
+    // which OpenStreetMap maps as many flat slices) show through each other like a layer cake.
+    // Draw them solid, use the real OSM building colour when there is one, and light them from the side.
+    map.setPaintProperty('building-3d','fill-extrusion-opacity',1);
+    map.setPaintProperty('building-3d','fill-extrusion-color',['coalesce',['get','colour'],
+      ['interpolate',['linear'],['coalesce',['get','render_height'],0],0,'#e4ddd2',60,'#cfc8bd',200,'#b5aea4']]);
+    map.setPaintProperty('building-3d','fill-extrusion-vertical-gradient',true);
+    if(map.setLight) map.setLight({anchor:'map',position:[1.4,210,35],intensity:0.45,color:'#ffffff'});
+  }
+
+  // 3D terrain: free AWS Terrain Tiles (Terrarium-encoded elevation, no key). One source drives the 3D
+  // ground, a second identical one the hillshade (MapLibre recommends separate sources for the two).
+  const DEM={type:'raster-dem',encoding:'terrarium',tileSize:256,maxzoom:15,
+    tiles:['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
+    attribution:'Elevation: AWS Terrain Tiles (Mapzen, USGS, SRTM, others)'};
+  map.addSource('dem',DEM); map.addSource('dem-hs',{...DEM});
+  map.addLayer({id:'hills',type:'hillshade',source:'dem-hs',layout:{visibility:mode3d?'visible':'none'},
+    paint:{'hillshade-exaggeration':0.55,'hillshade-shadow-color':'#2b2118','hillshade-highlight-color':'#fffaf0'}},firstLabel);
+  // Smooth heat map, draped over the terrain in 3D mode (fed by updateHeat()).
+  map.addSource('heat',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+  map.addLayer({id:'heat',type:'heatmap',source:'heat',layout:{visibility:mode3d?'visible':'none'},paint:{
+    'heatmap-weight':['get','w'],
+    // radius ≈ 1.4 grid squares at every zoom (512 px = 360° at zoom 0), at least 8 px
+    'heatmap-radius':['interpolate',['exponential',2],['zoom'],
+      ...[0,2,4,6,8,10,12,14,16].flatMap(z=>[z,['max',8,['*',['get','px0'],2**z]]])],
+    'heatmap-intensity':['interpolate',['linear'],['zoom'],2,3.2,6,2.4,10,1.6],'heatmap-opacity':0.85}},firstLabel);
+  if(mode3d) map.setTerrain({source:'dem',exaggeration:TERRAIN_EXAGGERATION});
+
+  // Our layers on top
+  map.addSource('aoi',{type:'geojson',data:bboxGeo(state.bbox)});
+  map.addLayer({id:'aoi-fill',type:'fill',source:'aoi',paint:{'fill-color':'#ff8c00','fill-opacity':0.06}});
+  map.addLayer({id:'aoi-line',type:'line',source:'aoi',paint:{'line-color':'#ff8c00','line-width':2,'line-dasharray':[2,1]}});
+  // Density grid: used when there are too many detections to draw one dot each.
+  // Every square counts ALL detections inside it (computed on the server), colored on a log scale.
+  map.addSource('grid',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+  map.addLayer({id:'grid',type:'fill',source:'grid',paint:{
+    'fill-color':['interpolate',['linear'],['get','lvl'],0,'#fed976',0.25,'#feb24c',0.45,'#fd8d3c',0.6,'#fc4e2a',0.75,'#e31a1c',0.9,'#bd0026',1,'#800026'],
+    'fill-opacity':0.8,'fill-outline-color':'rgba(0,0,0,0)'}});
+  // ML forecast layer (purple, so it isn't confused with real fire detections in red)
+  map.addSource('risk',{type:'geojson',data:riskData||{type:'FeatureCollection',features:[]}});
+  map.addLayer({id:'risk',type:'fill',source:'risk',layout:{visibility:riskOn?'visible':'none'},paint:{
+    'fill-color':['interpolate',['linear'],['get','p'],0,'#f3e5fa',0.05,'#e2c4f0',0.15,'#cc99e6',0.3,'#b366d9',0.45,'#9932cc',0.6,'#7a28a3',0.8,'#5c1e7a'],
+    'fill-opacity':['interpolate',['linear'],['get','p'],0,0.15,0.1,0.6,0.3,0.85],'fill-outline-color':'rgba(0,0,0,0)'}});
+  map.addSource('pts',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+  map.addLayer({id:'pts',type:'circle',source:'pts',paint:{
+    'circle-radius':['interpolate',['linear'],['zoom'],4,2,9,4,13,7],
+    'circle-color':['interpolate',['linear'],['get','frp'],0,'#fed976',10,'#fd8d3c',40,'#e31a1c',150,'#800026'],
+    'circle-stroke-color':'#000','circle-stroke-width':0.5,'circle-opacity':0.85}});
+
+  map.addSource('olpin',{type:'geojson',data:olPinGeo()});
+  map.addLayer({id:'olpin',type:'circle',source:'olpin',paint:{'circle-radius':8,'circle-color':'#00bfff','circle-stroke-width':3,'circle-stroke-color':'#fffaf0'}});
+  if(map.setSky) map.setSky(skySpec());
+  mapReady=true;
+  updateHeat();
+  g3d.terrainKey='';                 // a new style starts without terrain
+  if(mode3d) update3DView();
+  const m=$('mapMsg'); if(m) m.remove();
+  applyBase(currentBase);
+  if(!fittedOnce){fittedOnce=true; fitToBbox();}
+  if(state.hotspots) drawPoints(state.hotspots);
+}
+
+/** "3D" button that sits under the + / − zoom buttons. */
+class Map3DControl {
+  onAdd(){
+    const c=document.createElement('div'); c.className='maplibregl-ctrl maplibregl-ctrl-group ctrl-3d';
+    const b=document.createElement('button'); b.type='button'; b.id='btn3d'; b.textContent='3D';
+    b.title='3D view of this spot'; b.setAttribute('aria-label','Toggle 3D view of this spot'); b.setAttribute('aria-pressed','false');
+    b.onclick=()=>set3D(!mode3d);
+    c.appendChild(b); this._c=c; return c;
+  }
+  onRemove(){ this._c.remove(); }
+}
+
+if (HAS_MAP) try {
+  map = new maplibregl.Map({ container:'map', style:OFM_STYLE, center:[-81.4,28.4], zoom:6.5, maxPitch:80 });
+  map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'top-right');
+  map.addControl(new Map3DControl(),'top-right');
+  map.on('zoomend',()=>{ if(mode3d) update3DView(); });
+  map.addControl(new maplibregl.ScaleControl(),'bottom-left');
+
+  map.on('style.load',()=>{ try{ setupLayers(); }catch(e){ console.error('setupLayers',e); } });
+
+  let tileErrors=0;
+  map.on('error',e=>{
+    console.warn('map error', e && e.error);
+    if(!mapReady && !usingFallback && !(e && e.sourceId)) return useFallback();   // style itself failed
+    if(e && e.sourceId && ++tileErrors===6)
+      mapMessage('Some map tiles aren\'t loading. Check your internet, or a school/ad blocker may be blocking the map sites. Fire dots and the area box still work.');
+  });
+  setTimeout(()=>{ if(!mapReady && !usingFallback) useFallback(); },7000);
+  setTimeout(()=>{ if(!mapReady) mapMessage('The map is taking too long to start. If you opened this inside an app preview, download index.html and open it in Chrome/Edge/Firefox instead. Everything else on the page still works.'); },14000);
+
+  // Popup with live weather underneath (OpenWeather via our own server, which holds the key).
+  // Display only: the forecast model doesn't use it (it needs 13 years of history to learn from).
+  function popupWithWeather(lngLat, html){
+    const id='wx'+Math.random().toString(36).slice(2);
+    const pop=new maplibregl.Popup({maxWidth:'300px'}).setLngLat(lngLat)
+      .setHTML(html+(state.weather?`<div id="${id}" style="margin-top:6px;padding-top:6px;border-top:1px solid var(--line)">Loading weather now…</div>`:'')).addTo(map);
+    if(!state.weather) return pop;
+    fetch(`/api/weather?lat=${lngLat.lat.toFixed(2)}&lon=${lngLat.lng.toFixed(2)}`).then(r=>r.json()).then(w=>{
+      const el=document.getElementById(id); if(!el) return;
+      if(w.error){ el.textContent='Live weather unavailable right now.'; return; }
+      const n=w.next5, kmh=v=>Math.round(v*3.6);
+      const dry=n.min_humidity!=null&&n.min_humidity<30&&n.rain_mm<2;
+      el.innerHTML=`<b>Weather now</b>${w.place?' near '+escHtml(w.place):''}: ${Math.round(w.temp_c)}°C, ${escHtml(w.description)}<br>`+
+        `Humidity ${w.humidity}% · wind ${kmh(w.wind_ms)} km/h${w.gust_ms?` (gusts ${kmh(w.gust_ms)})`:''}<br>`+
+        `<b>Next 5 days:</b> up to ${Math.round(n.max_temp_c)}°C, humidity down to ${n.min_humidity}%, `+
+        `wind up to ${kmh(n.max_wind_ms)} km/h, rain ${n.rain_mm} mm`+
+        (dry?`<br><span style="color:#e35b5b">Dry spell ahead: fires spread more easily.</span>`:'')+
+        `<br><span style="color:var(--muted)">Live weather · OpenWeather</span>`;
+    }).catch(()=>{ const el=document.getElementById(id); if(el) el.textContent='Live weather unavailable right now.'; });
+    return pop;
+  }
+  function escHtml(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+  // Hotspot popups (layer-scoped, so they survive style switches)
+  map.on('click',e=>{                     // Wildfire outlook: "Pick a place on the map"
+    if(!olPicking) return;
+    setTimeout(()=>{ olPicking=false; document.body.classList.remove('picking'); $('olPick').classList.remove('active'); },0);
+    olManual=true; runOutlook([e.lngLat.lng,e.lngLat.lat], true);
+  });
+  map.on('click','pts',e=>{
+    if(olPicking) return;
+    const p=e.features[0].properties;
+    popupWithWeather(e.lngLat,
+      `<b>${p.instrument}</b> (${p.satellite})<br>${p.acq_date} ${p.acq_time.slice(0,2)}:${p.acq_time.slice(2)} UTC · ${p.daynight==='D'?'day':'night'}<br>`+
+      `FRP: ${p.frp} MW · confidence: ${p.confidence}<br>${(+p.latitude).toFixed(4)}, ${(+p.longitude).toFixed(4)}`);
+  });
+  map.on('mouseenter','pts',()=>map.getCanvas().style.cursor='pointer');
+  map.on('mouseleave','pts',()=>map.getCanvas().style.cursor='');
+  map.on('click','risk',e=>{
+    if(drawing || olPicking || map.queryRenderedFeatures(e.point,{layers:['pts']}).length) return;
+    const p=e.features[0].properties, f=riskFiles[p.region];
+    const ratio=p.usual>0.005?` (${(p.p/p.usual).toFixed(1)}× usual)`:'';
+    popupWithWeather(e.lngLat,
+      `<b>${Math.round(p.p*100)}% chance of fire</b>${ratio}<br>${f.valid_from} → ${f.valid_to}<br>`+
+      `Usual for this time of year: ${Math.round(p.usual*100)}%<br><span style="color:var(--muted)">ML forecast · ${f.name} · ${f.cell}° square</span>`);
+  });
+  map.on('click','grid',e=>{
+    if(drawing || olPicking || map.queryRenderedFeatures(e.point,{layers:['pts','risk']}).length) return;   // a dot / forecast square was clicked instead
+    const p=e.features[0].properties, c=state.hotspots&&state.hotspots.grid?state.hotspots.grid.cell:0;
+    popupWithWeather(e.lngLat,
+      `<b>${fmt(p.count)} detections</b> in this ${c}° square (about ${Math.round(c*111)} km)<br>`+
+      `${state.hotspots.start} → ${state.hotspots.end}<br>Total FRP: ${fmt(p.frp_sum)} MW · strongest: ${fmt(p.frp_max)} MW`);
+  });
+
+  // Box drawing
+  map.on('mousedown',e=>{ if(!drawing)return; drawStart=e.lngLat; });
+  map.on('mousemove',e=>{
+    if(!drawing||!drawStart||!mapReady)return;
+    map.getSource('aoi').setData(bboxGeo(normBox(drawStart,e.lngLat)));
+  });
+  map.on('mouseup',e=>{
+    if(!drawing||!drawStart)return;
+    const b=normBox(drawStart,e.lngLat); drawStart=null; drawing=false;
+    $('drawBtn').classList.remove('active'); document.body.classList.remove('drawing'); map.dragPan.enable();
+    if((b[2]-b[0])<0.02||(b[3]-b[1])<0.02){toast('Box too small, try again');if(mapReady)map.getSource('aoi').setData(bboxGeo(state.bbox));return;}
+    setBbox(b,false);
+  });
+} catch (err) {
+  console.error('Map failed to start:', err);
+  map = null;
+  mapMessage('The map couldn\'t start here (this usually means the page is open inside an app preview, which blocks it). Download index.html and open it in Chrome/Edge/Firefox. Everything else on the page still works.');
+} else {
+  mapMessage('The map library didn\'t load. This happens when the file is opened inside a preview window (like the Claude app) or with no internet. Download the file and open it in Chrome/Edge/Firefox.');
+}
+
+function bboxGeo([w,s,e,n]){return {type:'Feature',geometry:{type:'Polygon',coordinates:[[[w,s],[e,s],[e,n],[w,n],[w,s]]]}};}
+function fitToBbox(){ if(!map) return; const [w,s,e,n]=state.bbox; map.fitBounds([[w,s],[e,n]],{padding:40,duration:600}); }
+function normBox(a,b){return [Math.min(a.lng,b.lng),Math.min(a.lat,b.lat),Math.max(a.lng,b.lng),Math.max(a.lat,b.lat)].map(v=>+v.toFixed(3));}
+
+let drawing=false, drawStart=null, dateTimer=null;
+
+/* ---- ML fire-likelihood forecast (files made by ml/train.py, served from /predictions/) ---- */
+let riskOn=false, riskData=null, riskFiles={};
+async function loadRisk(){
+  const list=await (await fetch('predictions/index.json')).json();
+  const files=await Promise.all(list.map(r=>fetch(`predictions/${r.region}.json`).then(x=>x.json())));
+  // Regional models (finer squares, VIIRS + weather) take priority: drop world squares whose centre
+  // falls inside a square that a regional model covers, so the two never draw on top of each other.
+  const regional=files.filter(f=>f.region!=='world');
+  const covered=regional.map(f=>({c:f.cell,set:new Set(f.cells.map(([w,s])=>Math.round(w/f.cell)+','+Math.round(s/f.cell)))}));
+  const isCovered=(lon,lat)=>covered.some(({c,set})=>set.has(Math.floor(lon/c)+','+Math.floor(lat/c)));
+  for(const f of files) f.shown = f.region==='world' ? f.cells.filter(([w,s])=>!isCovered(w+f.cell/2,s+f.cell/2)) : f.cells;
+  files.sort((a,b)=>(a.region==='world')-(b.region==='world'));   // regions first, world last in the info box
+  const feats=[];
+  for(const f of files){
+    riskFiles[f.region]=f;
+    for(const [w,s,p,usual] of f.shown) feats.push({type:'Feature',properties:{p,usual,region:f.region},
+      geometry:{type:'Polygon',coordinates:[[[w,s],[w+f.cell,s],[w+f.cell,s+f.cell],[w,s+f.cell],[w,s]]]}});
+  }
+  riskData={type:'FeatureCollection',features:feats};
+  const pct=v=>v==null?'–':Math.round(v*100)+'%';
+  $('riskInfo').innerHTML=files.map(f=>{
+    const t=f.test, g=t['gradient boosting'], b=t['climatology baseline'], l=t['logistic regression'];
+    const src=`${f.sensor||'VIIRS'} fire detections${f.weather===false?'':' + NASA POWER weather'}`+(f.region==='world'?'; shown where no regional model exists':'');
+    return `<b>${f.name}: chance of fire in each ${f.cell}° square, ${f.valid_from} → ${f.valid_to}</b> (forecast made from data up to ${f.issued}; ${src}).<br>`+
+      `${f.question}. Darker purple = more likely. Click a square to compare with what's usual for this time of year.<br>`+
+      `<b>How good is it?</b> Tested on ${t.years}, years the model never saw. The 10% of squares it rated riskiest caught `+
+      `<b>${pct(g.top10pct_captures)}</b> of the squares that really burned (just using "how often it burned before": ${pct(b.top10pct_captures)}`+
+      (g.fire_rate>0.1?`; even a perfect forecast could catch only about ${pct(Math.min(1,0.1/g.fire_rate))}, because ${pct(g.fire_rate)} of squares burn in a typical month`:'')+`). `+
+      `PR-AUC (0 to 1, higher is better; random guessing = ${g.fire_rate}): model <b>${g.pr_auc}</b> · logistic regression ${l.pr_auc} · baseline ${b.pr_auc}.<br>`+
+      `<b>What mattered most:</b> ${f.what_mattered.filter(x=>x.importance>0).slice(0,4).map(x=>x.input).join(' · ')}.<br>`+
+      `<i>Limits: it predicts satellite-detected fire of any kind (wildfire, prescribed burn or farm burning), not the cause. `+
+      `Weather 30 days ahead can't be known, so it relies on dryness, season and recent fire activity. Not an official warning; see the NFDRS/WFPI fire-danger maps for that.</i>`;
+  }).join('<hr style="border-color:var(--line)">');
+}
+$('riskBtn').onclick=async()=>{
+  if(!map) return toast('Map not available');
+  if(!riskData){
+    try{ $('riskBtn').textContent='Loading forecast…'; await loadRisk(); }
+    catch(e){ console.error(e); toast('No forecast found. Run: python ml/train.py california'); return; }
+    finally{ $('riskBtn').textContent='Fire likelihood (30 days)'; }
+    if(mapReady) map.getSource('risk').setData(riskData);
+  }
+  riskOn=!riskOn;
+  $('riskBtn').setAttribute('aria-pressed',riskOn); $('riskBtn').classList.toggle('active',riskOn);
+  $('riskInfo').style.display=riskOn?'block':'none';
+  updateHeat();   // shows the flat purple squares (2D) or the purple heat map (3D)
+  if(riskOn){   // fly to the forecast area(s)
+    const fs=Object.values(riskFiles); let b=[180,90,-180,-90];
+    fs.forEach(f=>f.shown.forEach(([w,s])=>{b=[Math.min(b[0],w),Math.min(b[1],s),Math.max(b[2],w+f.cell),Math.max(b[3],s+f.cell)];}));
+    map.fitBounds([[b[0],b[1]],[b[2],b[3]]],{padding:40,duration:900});
+  }
+};
+$('drawBtn').onclick=()=>{
+  if(!map) return toast('Map not available');
+  drawing=!drawing;
+  $('drawBtn').classList.toggle('active',drawing);
+  document.body.classList.toggle('drawing',drawing);
+  if(drawing){map.dragPan.disable();toast('Click and drag on the map to draw your area');} else map.dragPan.enable();
+};
+
+function setBbox(b,fit=true){
+  state.bbox=b;
+  ['west','south','east','north'].forEach((id,i)=>$(id).value=b[i]);
+  if(map && mapReady) map.getSource('aoi').setData(bboxGeo(b));
+  if(fit) fitToBbox();
+  refreshAll();
+}
+
+// Basemap + tilt
+let currentBase='streets';
+function applyBase(b){
+  currentBase=b;
+  document.querySelectorAll('[data-base]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.base===b));
+  if(!map||!mapReady) return;
+  if(map.getLayer('sat-esri')) map.setLayoutProperty('sat-esri','visibility',b==='satellite'?'visible':'none');
+  if(map.getLayer('sat-gibs')) map.setLayoutProperty('sat-gibs','visibility',b==='nasa'?'visible':'none');
+}
+document.querySelectorAll('[data-base]').forEach(btn=>btn.onclick=()=>{
+  if(!map) return;
+  applyBase(btn.dataset.base);
+  if(btn.dataset.base==='nasa'&&map.getZoom()>9) toast('NASA daily imagery is low-res past zoom 9, but it shows today\'s smoke and burn scars');
+});
+/* ---- 3D: tilt over the spot you're looking at (never jumps elsewhere) ----
+   Zoomed out: terrain + fire heat map. Zoomed in to a city (zoom >= 12): 3D buildings; with GOOGLE_MAPS_KEY on the
+   server, Google Photorealistic 3D Tiles (streamed through server.py, which adds the key) with fire dots draped on them. */
+const G3D_MIN_ZOOM=12;
+const g3d={available:false, overlay:null, deckLoading:null, active:false, terrainKey:'', loaded:false, watch:null};
+function skySpec(){
+  const light=window.movbacTheme && movbacTheme()==='light';
+  return {'sky-color':light?'#8ecae6':'#0b1a26','horizon-color':light?'#f4ede2':'#2f4f4f','fog-color':light?'#e8eeee':'#142121',
+          'sky-horizon-blend':0.6,'horizon-fog-blend':0.5,'fog-ground-blend':0.35,
+          'atmosphere-blend':['interpolate',['linear'],['zoom'],0,1,10,1,13,0]};
+}
+window.addEventListener('movbac-theme',()=>{ if(map && mapReady && map.setSky) map.setSky(skySpec()); });
+
+async function set3D(on){
+  if(!map || !mapReady) return toast('Map not ready yet');
+  mode3d=on;
+  const b=$('btn3d'); if(b){ b.classList.toggle('on',on); b.setAttribute('aria-pressed',on); b.title=on?'Back to flat 2D':'3D view of this spot'; }
+  updateHeat();
+  await update3DView();           // terrain first: changing terrain mid-animation would stop the tilt
+  if(on){
+    const z=map.getZoom(), bearing=Math.abs(map.getBearing())>1?map.getBearing():-20;
+    map.easeTo({pitch:z>=G3D_MIN_ZOOM?65:58, bearing, duration:1000});          // same center, same zoom
+    toast(z>=G3D_MIN_ZOOM
+      ? (g3d.available?'Photorealistic 3D of this spot (Google)':'3D buildings and terrain of this spot')
+      : (riskOn?'3D terrain with the 30-day fire-likelihood heat map. Zoom in to a city for 3D buildings'
+               :'3D terrain with a heat map of real fires. Zoom in to a city for 3D buildings'));
+  } else {
+    map.easeTo({pitch:0, bearing:0, duration:800});
+  }
+}
+
+function loadDeck(){
+  if(window.deck) return Promise.resolve();
+  if(!g3d.deckLoading) g3d.deckLoading=new Promise((res,rej)=>{
+    const sc=document.createElement('script'); sc.src='https://cdn.jsdelivr.net/npm/deck.gl@9.1.15/dist.min.js';
+    sc.onload=res; sc.onerror=()=>rej(new Error('deck.gl did not load')); document.head.appendChild(sc);
+  });
+  return g3d.deckLoading;
+}
+const frpRGB=f=>{f=+f||0; return f>=150?[128,0,38]:f>=40?[227,26,28]:f>=10?[253,141,60]:[254,217,118];};
+function setG3dCredits(text){
+  let el=$('g3dCredits');
+  if(!el){ el=document.createElement('div'); el.id='g3dCredits'; $('map').appendChild(el); }
+  el.innerHTML='<b>Google</b>'+(text?' · '+escH(text):'');
+  el.style.display=g3d.active?'block':'none';
+}
+const onTilesetLoad=ts=>{ g3d.loaded=true; ts.options.onTraversalComplete=sel=>{
+  const c=new Set();
+  sel.forEach(t=>{ const cp=t.content&&t.content.gltf&&t.content.gltf.asset&&t.content.gltf.asset.copyright; if(cp) cp.split(';').forEach(x=>{x=x.trim(); if(x && x!=='Google') c.add(x);}); });
+  setG3dCredits([...c].join('; ')); return sel; }; };
+function g3dLayers(){
+  const D=window.deck, terrain=()=>[new D._TerrainExtension()];
+  const rows=(state.hotspots&&state.hotspots.rows)||[];
+  const layers=[
+    new D.Tile3DLayer({id:'google-3d', data:'/v1/3dtiles/root.json', operation:'terrain+draw', onTilesetLoad,
+      onTileError:e=>console.warn('Google 3D tile error',e)}),
+    new D.ScatterplotLayer({id:'g3d-fires', data:rows, getPosition:d=>[+d.longitude,+d.latitude], getFillColor:d=>frpRGB(d.frp),
+      stroked:true, getLineColor:[20,20,20], lineWidthMinPixels:1, getRadius:35, radiusMinPixels:4, extensions:terrain()}),
+  ];
+  if(olPoint) layers.push(new D.ScatterplotLayer({id:'g3d-pin', data:[olPoint], getPosition:d=>d, getFillColor:[0,191,255],
+      stroked:true, getLineColor:[255,250,240], lineWidthMinPixels:3, getRadius:60, radiusMinPixels:8, extensions:terrain()}));
+  return layers;
+}
+async function update3DView(){
+  if(!map || !mapReady) return;
+  const want=mode3d && g3d.available && map.getZoom()>=G3D_MIN_ZOOM;
+  if(want){
+    try{ await loadDeck(); }
+    catch(e){ console.error(e); g3d.available=false; toast('Google 3D could not load, showing standard 3D'); return update3DView(); }
+    if(!mode3d) return;
+    if(!g3d.overlay){ g3d.overlay=new deck.MapboxOverlay({interleaved:false, layers:[]}); map.addControl(g3d.overlay); }
+    g3d.overlay.setProps({layers:g3dLayers()});
+    g3d.active=true;
+    // If Google's tiles never arrive (API not enabled, trial over, offline), fall back to the standard 3D view.
+    if(!g3d.loaded && !g3d.watch) g3d.watch=setTimeout(()=>{
+      g3d.watch=null;
+      if(!g3d.loaded){ g3d.available=false; toast('Google 3D tiles did not load, so showing the standard 3D view'); update3DView(); }
+    },15000);
+  } else if(g3d.active){
+    g3d.overlay.setProps({layers:[]}); g3d.active=false;
+  }
+  // MapLibre's own terrain and buildings only when Google 3D isn't drawing (it has its own ground and buildings).
+  const city=map.getZoom()>=G3D_MIN_ZOOM;
+  const tKey=!mode3d||g3d.active?'off':city?'city':'region';
+  if(tKey!==g3d.terrainKey){
+    g3d.terrainKey=tKey;
+    try{ map.setTerrain(tKey==='off'?null:{source:'dem',exaggeration:tKey==='city'?1:TERRAIN_EXAGGERATION}); }
+    catch(e){ console.error('terrain',e); }
+  }
+  if(map.getLayer('building-3d')) map.setLayoutProperty('building-3d','visibility',g3d.active?'none':'visible');
+  if(g3d.active && !$('g3dCredits')) setG3dCredits('');
+  const cr=$('g3dCredits'); if(cr) cr.style.display=g3d.active?'block':'none';
+}
+
+/* =====================================================================
+   CHARTS
+   ===================================================================== */
+const HAS_CHARTS = typeof echarts !== 'undefined';
+if (!HAS_CHARTS) document.querySelector('main').insertAdjacentHTML('afterbegin','<div class="card span12" style="border-color:var(--accent)">The chart library didn\'t load (no internet, or something is blocking cdn.jsdelivr.net). Stats, map and CSV still work.</div>');
+const noChart = {setOption(){}, resize(){}};
+// Charts follow light/dark mode: re-created and re-drawn when the mode changes.
+const cv = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const chartTheme = () => (window.movbacTheme && movbacTheme()==='light') ? null : 'dark';
+function makeCharts(){ return {
+  calendar: echarts.init($('calendar'),chartTheme(),{renderer:'canvas'}),
+  trend: echarts.init($('trend'),chartTheme()),
+  profile: echarts.init($('profile'),chartTheme()),
+}; }
+let charts = HAS_CHARTS ? makeCharts() : {calendar:noChart, trend:noChart, profile:noChart};
+window.addEventListener('movbac-theme',()=>{
+  if(!HAS_CHARTS) return;
+  Object.values(charts).forEach(c=>c.dispose());
+  charts=makeCharts();
+  for (const f of [renderCalendar, renderTrend, renderProfile]) { try { f(); } catch(e){ console.error(f.name, e); } }
+});
+window.addEventListener('resize',()=>Object.values(charts).forEach(c=>c.resize()));
+const baseChart = {backgroundColor:'transparent',textStyle:{fontFamily:'system-ui,sans-serif'}};
+
+function renderCalendar(){
+  const rows=state.monthly, view=state.view;
+  const years=[...new Set(rows.map(r=>r.year))];
+  const medH = monthMedians(rows,'harmonized_count');
+  const data=[];
+  rows.forEach(r=>{
+    let v;
+    if(view==='harmonized') v=r.harmonized_count;
+    else if(view==='raw') v=rawValue(r);
+    else { const m=medH[r.month-1]; v= m? Math.max(-100,Math.min(200,(r.harmonized_count-m)/m*100)) : 0; }
+    data.push([r.month-1, years.indexOf(r.year), v==null?'-':Math.round(v), r]);
+  });
+  const vals=data.map(d=>d[2]).filter(v=>v!=='-');
+  const isAnom=view==='anomaly';
+  const maxV = isAnom?200:Math.max(1,...vals);
+  $('calTitle').textContent = {harmonized:'Burning activity calendar: harmonized',raw:'Burning activity calendar: raw (sensor switch in 2012)',anomaly:'Burning activity calendar: anomaly vs. monthly median'}[view];
+  $('calDesc').textContent = isAnom
+    ? 'Each cell = % difference from that month\'s historical median. Orange = more fire than normal, purple = less.'
+    : `Each cell = number of hotspots detected in the area that month (${view==='raw'?'MODIS before 2012, VIIRS after; not comparable across 2012':'all years in VIIRS-equivalent units'}). Darker = more fire.`;
+  $('viewHint').textContent = {harmonized:'Whole record on one scale.',raw:'Look for the fake jump at 2012.',anomaly:'Spot unusual months and years fast.'}[view];
+
+  charts.calendar.setOption({
+    ...baseChart,
+    tooltip:{formatter:p=>{
+      const r=p.data[3]; const m=medH[r.month-1];
+      const pct = m? ((r.harmonized_count-m)/m*100):0;
+      return `<b>${MONTHS[r.month-1]} ${r.year}</b><br>`+
+        `Harmonized: ${fmt(r.harmonized_count)}<br>`+
+        `Raw MODIS: ${fmt(r.modis_count)}${r.viirs_count!=null?`<br>Raw VIIRS: ${fmt(r.viirs_count)}`:''}<br>`+
+        `vs. ${MONTHS[r.month-1]} median (${fmt(m)}): <b>${pct>=0?'+':''}${pct.toFixed(0)}%</b>`;
+    }},
+    grid:{left:50,right:20,top:30,bottom:70},
+    xAxis:{type:'category',data:MONTHS,splitArea:{show:false},position:'top',axisTick:{show:false}},
+    yAxis:{type:'category',data:years,inverse:true,axisTick:{show:false}},
+    visualMap: isAnom
+      ? {type:'continuous',dimension:2,min:-100,max:200,calculable:true,orient:'horizontal',left:'center',bottom:8,
+         inRange:{color:RAMP_DIV},text:['+200% (more)','−100% (less)'],textStyle:{color:cv('--text2')}}
+      : {type:'continuous',dimension:2,min:0,max:maxV,calculable:true,orient:'horizontal',left:'center',bottom:8,
+         inRange:{color:RAMP_SEQ},text:[fmt(maxV)+' hotspots','0'],textStyle:{color:cv('--text2')}},
+    series:[{type:'heatmap',data,itemStyle:{borderColor:cv('--bg-solid'),borderWidth:1},
+      emphasis:{itemStyle:{borderColor:cv('--text'),borderWidth:1.5}},
+      markLine: view==='raw' ? {silent:true,symbol:'none',lineStyle:{color:cv('--text'),type:'dashed'},
+        label:{formatter:'VIIRS starts ↓',color:cv('--text'),backgroundColor:cv('--bg-solid'),padding:[2,6],position:'insideEndTop'},
+        data:[{yAxis:years.indexOf(CONFIG.VIIRS_START_YEAR)-0.5}]} : undefined
+    }]
+  },true);
+}
+
+function renderTrend(){
+  const rows=state.monthly; const years=[...new Set(rows.map(r=>r.year))];
+  const sum=(y,f)=>{const rs=rows.filter(r=>r.year===y);if(rs.some(r=>r[f]==null))return null;return rs.reduce((a,r)=>a+r[f],0);};
+  charts.trend.setOption({...baseChart,
+    tooltip:{trigger:'axis',valueFormatter:v=>fmt(v)},
+    legend:{top:0,textStyle:{color:cv('--text2')}},
+    grid:{left:60,right:16,top:34,bottom:30},
+    xAxis:{type:'category',data:years},
+    yAxis:{type:'value',name:'hotspots / yr',nameTextStyle:{color:cv('--muted')}},
+    series:[
+      {name:'Harmonized',type:'line',data:years.map(y=>sum(y,'harmonized_count')),color:'#ff8c00',symbol:'none',lineStyle:{width:7,opacity:0.45}},
+      {name:'Raw MODIS',type:'line',data:years.map(y=>sum(y,'modis_count')),color:'#56b4e9',symbol:'circle',symbolSize:4,lineStyle:{type:'dashed',width:2}},
+      {name:'Raw VIIRS',type:'line',data:years.map(y=>sum(y,'viirs_count')),color:'#cc79a7',symbol:'circle',symbolSize:4,lineStyle:{type:'dashed',width:2}},
+    ]},true);
+}
+
+function renderProfile(){
+  const rows=state.monthly; const LY=CONFIG.LAST_COMPLETE.year;
+  const med=monthMedians(rows,'harmonized_count');
+  const yr=y=>MONTHS.map((_,mi)=>{const r=rows.find(r=>r.year===y&&r.month===mi+1);return r?r.harmonized_count:null;});
+  charts.profile.setOption({...baseChart,
+    tooltip:{trigger:'axis',valueFormatter:v=>fmt(v)},
+    legend:{top:0,textStyle:{color:cv('--text2')}},
+    grid:{left:55,right:12,top:34,bottom:30},
+    xAxis:{type:'category',data:MONTHS},
+    yAxis:{type:'value'},
+    series:[
+      {name:`Median ${CONFIG.FIRST_YEAR}–${LY-1}`,type:'bar',data:med,color:'#5b6170'},
+      {name:String(LY-1),type:'line',data:yr(LY-1),color:'#56b4e9',symbol:'none'},
+      {name:String(LY),type:'line',data:yr(LY),color:'#ff8c00',lineStyle:{width:3}},
+    ]},true);
+}
+
+function renderKPIs(){
+  const rows=state.monthly; const L=CONFIG.LAST_COMPLETE;
+  const sd=new Date(state.start), ed=new Date(state.end);
+  const inRange=rows.filter(r=>{const a=new Date(Date.UTC(r.year,r.month-1,1)),b=new Date(Date.UTC(r.year,r.month,0));return b>=sd&&a<=ed;});
+  const totalRange=inRange.reduce((a,r)=>a+r.harmonized_count,0);
+  const med=monthMedians(rows,'harmonized_count');
+  const peakM=med.indexOf(Math.max(...med));
+  const yearTot={}; rows.forEach(r=>{if(r.year<L.year)yearTot[r.year]=(yearTot[r.year]||0)+r.harmonized_count;});
+  const peakY=Object.entries(yearTot).sort((a,b)=>b[1]-a[1])[0];
+  const last=rows.find(r=>r.year===L.year&&r.month===L.month);
+  const lm=med[L.month-1]; const pct=lm?(last.harmonized_count-lm)/lm*100:0;
+  const err=state.method?.median_abs_pct_error;
+  const k=(v,l,cls='')=>`<div class="kpi"><div class="v ${cls}">${v}</div><div class="l">${l}</div></div>`;
+  $('kpis').innerHTML=
+    (state.hotspots&&state.hotspots.live ? k(fmt(state.hotspots.total),`real FIRMS detections in selected dates`) : k(fmt(totalRange),`hotspots in selected dates (harmonized)`))+
+    k(MONTHS[peakM],`typical peak fire month`)+
+    k(peakY?peakY[0]:'–',`most active year (${peakY?fmt(peakY[1]):''})`)+
+    k(`${pct>=0?'▲':'▼'} ${Math.abs(pct).toFixed(0)}%`,`${MONTHS[L.month-1]} ${L.year} vs. ${MONTHS[L.month-1]} median`,pct>=0?'up':'down')+
+    k(err!=null?`±${err}%`:'–',`harmonization error on held-out years`);
+}
+
+function renderMethod(){
+  const m=state.method; if(!m){$('methodText').textContent='';return;}
+  if(state.realMonthly){
+    const viirs = m.viirs_here
+      ? `This area has both sensors, so from Feb 2012 on the calendar shows real VIIRS counts.`
+      : `VIIRS data isn't downloaded for this area yet (we have it for California, Australia, Brazil and Africa), so every month here is MODIS × the ratio.`;
+    const src = m.ratio_source==='this area' ? 'from this area'
+      : m.ratio_source==='mixed' ? 'from this area where there was enough data, otherwise the world ratio'
+      : 'world ratio, from every square with both sensors';
+    $('methodText').innerHTML =
+      `Real NASA FIRMS vegetation-fire detections, ${m.first_month} to ${m.last_complete}, summed per ${m.resolution_deg}° square (about 110 km) and month. `+
+      `Units: <b>${m.units}</b>. VIIRS (375 m pixels) sees about 3–5× more fires than MODIS (1 km), so for each calendar month we compute the VIIRS ÷ MODIS ratio `+
+      `on ${m.fit_years[0]}–${m.fit_years[1]} (${src}) and multiply MODIS by it. ${viirs} `+
+      `Test: predicting VIIRS from MODIS on ${m.test_years[0]}–${m.test_years[1]}, years the ratio never saw: median error <b>${m.median_abs_pct_error}%</b> (${m.error_scope}). `+
+      `Monthly ratios: ${m.ratio_by_month.map((v,i)=>MONTHS[i]+' '+v).join(' · ')}.`;
+    return;
+  }
+  $('methodText').innerHTML =
+    `Units: <b>${m.units}</b>. For each calendar month we compute the VIIRS ÷ MODIS hotspot ratio over the years when both sensors overlap `+
+    `(fit on ${m.fit_years[0]}–${m.fit_years[1]}), then multiply pre-${CONFIG.VIIRS_START_YEAR} MODIS counts by it. `+
+    `We tested it by predicting VIIRS from MODIS on ${m.test_years[0]}–${m.test_years[1]}, which the ratio never saw: median error <b>${m.median_abs_pct_error}%</b>. `+
+    `Monthly ratios: ${m.ratio_by_month.map((v,i)=>MONTHS[i]+' '+v).join(' · ')}.`+
+    (CONFIG.DATA_MODE==='mock'?' <i>(Numbers are from demo data, so they will change once the real pipeline is connected.)</i>':'');
+}
+
+/* =====================================================================
+   REFRESH
+   ===================================================================== */
+let refreshToken=0;
+async function refreshAll(){
+  const my=++refreshToken;
+  try{
+    const m=await DataAPI.getMonthly(state.bbox);
+    if(my!==refreshToken) return;
+    state.monthly=m.rows; state.method=m.method;
+    if(state.live){
+      $('modeBadge').textContent = state.realMonthly ? 'LIVE NASA FIRMS DATA' : 'LIVE DOTS · DEMO CALENDAR';
+      $('modeBadge').title = state.realMonthly ? 'Map, calendar, charts and CSVs all use real NASA FIRMS detections.' : 'Calendar data could not be loaded, so the calendar shows demo numbers.';
+    }
+    if(!olManual) runOutlook(bboxCenter(state.bbox), false);
+    for (const f of [renderKPIs, renderCalendar, renderTrend, renderProfile, renderMethod]) { try { f(); } catch(e){ console.error(f.name, e); } }
+    await refreshPoints(my);
+  }catch(err){console.error(err);toast('Could not load data: '+err.message);}
+}
+function gridGeo(h){
+  const g=h.grid; if(!h.sampled||!g||!g.cells.length) return {type:'FeatureCollection',features:[]};
+  const c=g.cell, top=Math.log(Math.max(2,...g.cells.map(x=>x[2])));
+  return {type:'FeatureCollection',features:g.cells.map(([w,s,count,frp_sum,frp_max])=>({type:'Feature',
+    properties:{count,frp_sum,frp_max,lvl:Math.log(count)/top},
+    geometry:{type:'Polygon',coordinates:[[[w,s],[w+c,s],[w+c,s+c],[w,s+c],[w,s]]]}}))};
+}
+function drawPoints(h){
+  try{
+    if(!(map && mapReady && map.getSource('pts'))) return;
+    map.getSource('pts').setData({type:'FeatureCollection',features:h.rows.map(r=>({type:'Feature',properties:r,geometry:{type:'Point',coordinates:[r.longitude,r.latitude]}}))});
+    map.getSource('grid').setData(gridGeo(h));
+    // When the dots are only a sample, the grid tells the real story; show the sample dots once zoomed in.
+    map.setLayerZoomRange('pts', h.sampled && h.grid ? 7 : 0, 24);
+    updateHeat();
+  }catch(e){console.error(e);}
+}
+
+/* ---- 3D mode: terrain + heat map ----
+   The heat map shows whatever the flat map shows: the 30-day fire likelihood when Fire likelihood is on,
+   otherwise the real FIRMS detections. In 3D the flat squares are hidden and the heat is draped over the terrain. */
+let mode3d=false;
+const TERRAIN_EXAGGERATION=1.6;   // mountains drawn 1.6x taller so the shape of the land reads at country scale
+const HEAT_RAMPS={
+  risk:['interpolate',['linear'],['heatmap-density'],0,'rgba(0,0,0,0)',0.08,'rgba(204,153,230,0.55)',0.25,'#b366d9',0.45,'#9932cc',0.65,'#7a28a3',0.85,'#5c1e7a',1,'#3d1452'],
+  fire:['interpolate',['linear'],['heatmap-density'],0,'rgba(0,0,0,0)',0.08,'rgba(254,217,118,0.6)',0.25,'#feb24c',0.45,'#fd8d3c',0.65,'#fc4e2a',0.85,'#e31a1c',1,'#b10026'],
+};
+const pxAtZoom0=cell=>cell*512/360*1.4;
+function heatFeatures(){
+  const pt=(lon,lat,w,cell)=>({type:'Feature',properties:{w,px0:pxAtZoom0(cell)},geometry:{type:'Point',coordinates:[lon,lat]}});
+  if(riskOn && riskData) return {ramp:'risk',feats:Object.values(riskFiles).flatMap(f=>
+    f.shown.map(([w,s,p])=>pt(w+f.cell/2,s+f.cell/2,p,f.cell)))};
+  const h=state.hotspots; if(!h) return {ramp:'fire',feats:[]};
+  if(h.sampled && h.grid && h.grid.cells.length){
+    const c=h.grid.cell, top=Math.log(Math.max(2,...h.grid.cells.map(x=>x[2])));
+    return {ramp:'fire',feats:h.grid.cells.map(([w,s,n])=>pt(w+c/2,s+c/2,Math.log(n+1)/top,c))};
+  }
+  return {ramp:'fire',feats:h.rows.map(r=>pt(r.longitude,r.latitude,0.6,0.02))};
+}
+function updateHeat(){
+  if(!(map && mapReady && map.getSource('heat'))) return;
+  const {ramp,feats}=heatFeatures();
+  map.getSource('heat').setData({type:'FeatureCollection',features:feats});
+  map.setPaintProperty('heat','heatmap-color',HEAT_RAMPS[ramp]);
+  const vis=v=>v?'visible':'none';
+  map.setLayoutProperty('heat','visibility',vis(mode3d));
+  map.setLayoutProperty('hills','visibility',vis(mode3d));
+  map.setLayoutProperty('grid','visibility',vis(!mode3d));               // flat squares only in 2D
+  map.setLayoutProperty('risk','visibility',vis(riskOn && !mode3d));
+}
+async function refreshPoints(my=refreshToken){
+  if(state.live) $('pointNote').textContent='Loading real hotspots from NASA FIRMS… (a big area or long date range can take a few minutes the first time; after that it\'s cached)';
+  const h=await DataAPI.getHotspots(state.bbox,state.start,state.end,CONFIG.MAX_MAP_POINTS);
+  if(my!==refreshToken) return;
+  state.hotspots=h;
+  drawPoints(h);
+  if(g3d.active) update3DView();
+  const src = h.live ? ' · real NASA FIRMS (MODIS + VIIRS)' : ' · mock';
+  $('pointNote').textContent = (h.sampled
+    ? (h.grid ? `${fmt(h.total)} detections, shown as ${h.grid.cell}° squares (zoom in for a sample of ${fmt(h.rows.length)} clickable dots)`
+              : `Showing a sample of ${fmt(h.rows.length)} of ${fmt(h.total)} detections (narrow the dates to see all)`)
+    : `${fmt(h.rows.length)} detections`) + src + (h.live && h.start!==state.start ? ` (FIRMS range capped to ${h.start} → ${h.end})` : '');
+  if (h.live) renderKPIs();
+}
+
+/* =====================================================================
+   CSV EXPORT
+   ===================================================================== */
+function downloadCSV(name, rows){
+  if(!rows.length){toast('Nothing to export');return;}
+  const cols=Object.keys(rows[0]);
+  const esc=v=>v==null?'':(/[",\n]/.test(String(v))?`"${String(v).replace(/"/g,'""')}"`:v);
+  const csv=[cols.join(','),...rows.map(r=>cols.map(c=>esc(r[c])).join(','))].join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download=name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+}
+const bboxTag=()=>state.bbox.map(v=>v.toFixed(2)).join('_');
+$('csvBtn').onclick=async()=>{
+  const h=await DataAPI.getHotspots(state.bbox,state.start,state.end,CONFIG.MAX_CSV_ROWS);
+  downloadCSV(`hotspots_${bboxTag()}_${state.start}_${state.end}.csv`,h.rows);
+  if(h.sampled) toast(`Range is large, so CSV is sampled (${fmt(h.rows.length)} of ${fmt(h.total)})`);
+};
+$('csvMonthlyBtn').onclick=()=>{
+  const med=monthMedians(state.monthly,'harmonized_count');
+  downloadCSV(`monthly_calendar_${bboxTag()}.csv`,state.monthly.map(r=>({...r,
+    month_median_harmonized:med[r.month-1]==null?'':Math.round(med[r.month-1]),
+    anomaly_pct: med[r.month-1]? ((r.harmonized_count-med[r.month-1])/med[r.month-1]*100).toFixed(1):''})));
+};
+
+/* =====================================================================
+   WILDFIRE OUTLOOK: history + climate + this week's weather + ML forecast, with reasons
+   ===================================================================== */
+let olPicking=false, olManual=false, olPoint=null, olToken=0;
+const bboxCenter=b=>[(b[0]+b[2])/2,(b[1]+b[3])/2];
+function olPinGeo(){ return olPoint ? {type:'Feature',geometry:{type:'Point',coordinates:olPoint}} : {type:'FeatureCollection',features:[]}; }
+const escH=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const OL_LEVELS=['Low','Moderate','High','Very high'];
+const olColor=l=>({'Low':'var(--good)','Moderate':'var(--accent-text,var(--accent))','High':'var(--alert-text,var(--bad))','Very high':'var(--alert,var(--bad))'}[l]);
+const OL_EFFECT={raises:['▲','var(--alert-text,var(--bad))','raises the risk'],lowers:['▼','var(--good)','lowers the risk'],neutral:['●','var(--muted)','neutral']};
+
+async function runOutlook([lon,lat], fly){
+  const my=++olToken;
+  olPoint=[lon,lat];
+  if(map && mapReady && map.getSource('olpin')) map.getSource('olpin').setData(olPinGeo());
+  if(g3d.active) update3DView();
+  if(fly && map) map.easeTo({center:[lon,lat],duration:600});
+  if(!state.live){ $('olBody').innerHTML='<p class="legend-note">The outlook needs server.py running (real data).</p>'; return; }
+  $('olBody').innerHTML=`<p class="legend-note">Checking ${lat.toFixed(2)}, ${lon.toFixed(2)}: fire history, climate, this week's weather…</p>`;
+  try{
+    const r=await fetch(`/api/outlook?lat=${lat.toFixed(4)}&lon=${lon.toFixed(4)}`); const o=await r.json();
+    if(!r.ok) throw new Error(o.error||r.status);
+    if(my===olToken) renderOutlook(o);
+  }catch(e){ if(my===olToken) $('olBody').innerHTML=`<p class="legend-note">Couldn't get the outlook (${escH(e.message)}).</p>`; }
+}
+
+function olProfileSvg(o){
+  const rw=o.reported, useRw=rw&&rw.wildfires>0;
+  const W=300,H=70,p=useRw?rw.by_month:o.profile,mx=Math.max(1,...p),bw=W/12;
+  const season=useRw?MONTHS.filter((_,i)=>p[i]>=0.5*mx):o.season_months;
+  const bars=p.map((v,i)=>{
+    const h=Math.max(1,v/mx*(H-16)), x=i*bw+2, y=H-14-h, inWin=o.window_index.includes(i), inSeason=season.includes(MONTHS[i]);
+    const fill=inWin?'var(--accent)':inSeason?'#9932cc':'var(--muted)';
+    return `<rect x="${x}" y="${y}" width="${bw-4}" height="${h}" rx="2" fill="${fill}" opacity="${inWin||inSeason?1:0.45}"><title>${MONTHS[i]}: ${Math.round(v).toLocaleString()} ${useRw?'reported wildfires since '+rw.since:'satellite detections in a typical year'}</title></rect>`+
+           `<text x="${x+(bw-4)/2}" y="${H-2}" font-size="9" text-anchor="middle" fill="var(--muted)">${MONTHS[i][0]}</text>`;
+  }).join('');
+  return `<svg class="ol-profile" viewBox="0 0 ${W} ${H}" role="img" aria-label="Typical fires per month; orange = the next 30 days, purple = fire season">${bars}</svg>`;
+}
+
+function olReportedBlock(o){
+  const r=o.reported; if(!r||!r.wildfires) return '';
+  const known=r.human+r.natural, hs=known?r.human/known:0;
+  const bar=known>=5?`<div style="display:flex;height:10px;border-radius:5px;overflow:hidden;margin:6px 0 3px" role="img" aria-label="${Math.round(hs*100)}% human-caused, ${Math.round((1-hs)*100)}% lightning">
+      <span style="width:${hs*100}%;background:var(--accent)"></span><span style="width:${(1-hs)*100}%;background:var(--good)"></span></div>
+    <div class="ol-sub"><span style="color:var(--accent-text,var(--accent))">People ${Math.round(hs*100)}%</span> · <span style="color:var(--good)">lightning ${Math.round((1-hs)*100)}%</span> (fires with a known cause)</div>`:'';
+  return `<div class="ol-sub" style="margin-top:4px">${r.wildfires.toLocaleString()} wildfires reported within ${r.radius_km} km since ${r.since} · half were ${r.median_acres} acres or less · ${r.big_per_year} a year over 100 acres</div>${bar}`;
+}
+
+function renderOutlook(o){
+  const v=o.verdict, s=o.susceptibility, idx=OL_LEVELS.indexOf(v.level), col=olColor(v.level), rw=o.reported;
+  const meter=OL_LEVELS.map((l,i)=>`<span class="${i<=idx?'on':''}" style="background:${olColor(l)};color:${olColor(l)}"></span>`).join('');
+  const nudge=v.weather_nudge>0?`, nudged up by this week's weather`:v.weather_nudge<0?`, nudged down by this week's weather`:'';
+  const reasons=o.reasons.map(r=>{const [ic,c,lab]=OL_EFFECT[r.effect];return `<li><span class="ol-ico" style="color:${c}" title="${lab}" aria-label="${lab}">${ic}</span>`+
+    `<div><div class="ol-t">${escH(r.title)}<span class="ol-w">${r.weight==='high'?'major factor':r.weight==='medium'?'factor':'minor'}</span></div><div class="ol-d">${escH(r.detail)}</div></div></li>`;}).join('');
+  $('olBody').innerHTML=`<div class="ol-grid">
+    <div class="ol-verdict">
+      <div class="ol-place">${escH(o.place||'Selected place')}</div>
+      <div class="ol-sub">${o.lat}, ${o.lon} · next 30 days (${o.window.from} → ${o.window.to})</div>
+      <div class="ol-level" style="color:${col}">${v.level}</div>
+      <div class="ol-chance">${escH(v.what)}: about <b>${Math.round(v.chance*100)}%</b>. ${escH(v.basis)}${nudge}.</div>
+      <div class="ol-meter" aria-hidden="true">${meter}</div>
+      <div class="ol-scale"><span>Low</span><span>Moderate</span><span>High</span><span>Very high</span></div>
+      <div class="ol-sus">${escH(s.label)}</div>
+      ${olReportedBlock(o)}
+      ${olProfileSvg(o)}
+      <div class="ol-sub">${rw&&rw.wildfires?`Reported wildfires per month within ${rw.radius_km} km (${rw.since} on)`:'Typical satellite-seen fires per month'}. <span style="color:var(--accent-text,var(--accent))">Orange</span> = next 30 days, <span style="color:#9932cc">purple</span> = busiest months.</div>
+      <div class="ol-sub" style="margin-top:6px">Satellites saw fire in ${s.years_with_fire} of ${s.years} years in ${o.window.months.join('–')} (includes planned and farm burns).</div>
+    </div>
+    <div class="ol-reasons">
+      <h4>Why: reasons for this place</h4>
+      <ul>${reasons}</ul>
+      <div class="ol-notes">${o.notes.map(escH).join(' ')}</div>
+    </div>
+  </div>`;
+}
+
+$('olPick').onclick=()=>{
+  olPicking=!olPicking;
+  $('olPick').classList.toggle('active',olPicking); document.body.classList.toggle('picking',olPicking);
+  if(olPicking){ toast('Click anywhere on the map'); $('map').scrollIntoView({behavior:'smooth',block:'center'}); }
+};
+$('olCenter').onclick=()=>{ olManual=false; runOutlook(bboxCenter(state.bbox), true); };
+
+/* =====================================================================
+   CONTROLS WIRING
+   ===================================================================== */
+(function init(){
+  const L=CONFIG.LAST_COMPLETE;
+  const lastDay=new Date(Date.UTC(L.year,L.month,0)).getUTCDate();
+  state.end=isoDate(L.year,L.month,lastDay);
+  state.start=isoDate(L.year-1,L.month===12?1:L.month+1,1);
+  $('start').value=state.start; $('end').value=state.end;
+  $('start').min=$('end').min=`${CONFIG.FIRST_YEAR}-01-01`; $('start').max=$('end').max=state.end;
+  ['west','south','east','north'].forEach((id,i)=>$(id).value=state.bbox[i]);
+  $('modeBadge').textContent = CONFIG.DATA_MODE==='mock'?'MOCK DATA':'LIVE DATA';
+})();
+
+// Check for the FIRMS helper first (≤3 s), then load everything. Charts don't wait for the map.
+detectLive().then(live=>{
+  $('modeBadge').textContent = live ? 'LOADING…' : 'MOCK DATA';
+  $('modeBadge').title = live ? '' : 'All data is mock. Run server.py and open http://localhost:8000 for real FIRMS hotspots.';
+  if (!live && location.protocol==='file:') toast('Showing mock data. Run server.py for real NASA FIRMS hotspots');
+}).finally(refreshAll);
+
+$('preset').onchange=e=>{
+  const o=e.target.selectedOptions[0]; if(!e.target.value) return;
+  if(o.dataset.start){   // presets that are about a specific event also set the dates
+    clearTimeout(dateTimer);
+    state.start=$('start').value=o.dataset.start; state.end=$('end').value=o.dataset.end;
+  }
+  setBbox(e.target.value.split(',').map(Number));
+};
+$('applyBox').onclick=()=>{
+  const b=['west','south','east','north'].map(id=>parseFloat($(id).value));
+  if(b.some(isNaN)) return toast('Fill in all four coordinates');
+  if(b[0]>=b[2]||b[1]>=b[3]) return toast('West must be < East and South < North');
+  if(b[1]<-90||b[3]>90||b[0]<-180||b[2]>180) return toast('Coordinates out of range');
+  setBbox(b);
+};
+['start','end'].forEach(id=>$(id).onchange=()=>{
+  const s=$('start').value,e=$('end').value;
+  if(!s||!e||s>e) return toast('Start date must be before end date');
+  // Wait until you stop editing (typing a year fires a change per digit), so FIRMS isn't asked for
+  // half-typed date ranges. ++refreshToken makes any answer still in flight get ignored.
+  clearTimeout(dateTimer);
+  dateTimer=setTimeout(()=>{ state.start=s; state.end=e; renderKPIs(); refreshPoints(++refreshToken); },900);
+});
+document.querySelectorAll('[data-view]').forEach(btn=>btn.onclick=()=>{
+  document.querySelectorAll('[data-view]').forEach(b=>b.setAttribute('aria-pressed',b===btn));
+  state.view=btn.dataset.view; renderCalendar();
+});
+</script>
+</body>
+</html>

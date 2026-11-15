@@ -1,0 +1,12 @@
+.env
+.env.*
+__pycache__/
+node_modules/
+.vercel/
+.cache/
+ml/data/
+.data/
+# kept off GitHub: training data (3.9 GB) and the Expo app (its own git repo)
+ml/data/
+mavbac-connect/
+*.log

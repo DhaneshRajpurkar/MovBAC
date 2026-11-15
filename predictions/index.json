@@ -1,0 +1,27 @@
+[
+ {
+  "region": "africa",
+  "name": "Africa (African Union)",
+  "issued": "2026-11-12"
+ },
+ {
+  "region": "australia",
+  "name": "Australia",
+  "issued": "2026-11-11"
+ },
+ {
+  "region": "brazil",
+  "name": "Brazil",
+  "issued": "2026-11-11"
+ },
+ {
+  "region": "california",
+  "name": "California",
+  "issued": "2026-11-11"
+ },
+ {
+  "region": "world",
+  "name": "World",
+  "issued": "2026-11-13"
+ }
+]

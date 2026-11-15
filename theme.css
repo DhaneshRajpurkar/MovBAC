@@ -1,0 +1,97 @@
+/* MovBAC shared theme: the 5-colour palette + frosted-glass surfaces, in dark (default) and light mode.
+   Palette: DarkSlateGray #2F4F4F (base) · DarkOrange #FF8C00 (action) · FireBrick #B22222 (emergency)
+            DarkOrchid #9932CC (ML forecast) · DeepSkyBlue #00BFFF (information). Text: FloralWhite.
+   Loaded AFTER each page's own <style>, so these surface rules win. */
+:root{
+  color-scheme:dark;
+  --bg:#0b1515; --bg-solid:#0d1717;
+  --panel:rgba(23,38,38,.58); --panel2:rgba(47,79,79,.32);
+  --glass-border:rgba(255,250,240,.13); --glass-hi:rgba(255,250,240,.07);
+  --line:rgba(255,250,240,.15);
+  --text:#fffaf0; --text2:#dcd8cc; --muted:#a8b5b2;
+  --accent:#ff8c00; --accent-text:#ff8c00; --on-accent:#1a1006;
+  --accent2:#00bfff; --good:#00bfff; --bad:#e35b5b;
+  --alert:#b22222; --alert-text:#e35b5b; --alert-bg:rgba(178,34,34,.20);
+  --sos-bg:rgba(178,34,34,.32); --sos-text:#fffaf0;
+  --popup:rgba(13,23,23,.90);
+  --shadow:0 10px 30px rgba(0,0,0,.35);
+  --blob1:rgba(153,50,204,.30); --blob2:rgba(255,140,0,.16); --blob3:rgba(0,191,255,.13);
+}
+:root[data-theme="light"]{
+  color-scheme:light;
+  --bg:#e4edec; --bg-solid:#f4f8f7;
+  --panel:rgba(255,255,255,.56); --panel2:rgba(255,255,255,.62);
+  --glass-border:rgba(255,255,255,.80); --glass-hi:rgba(255,255,255,.55);
+  --line:rgba(47,79,79,.20);
+  --text:#142121; --text2:#2f4f4f; --muted:#4f6663;
+  --accent-text:#a35600; --accent2:#00739e; --good:#00739e; --bad:#b22222;
+  --alert-text:#b22222; --alert-bg:rgba(178,34,34,.08);
+  --sos-bg:rgba(178,34,34,.12); --sos-text:#7a1414;
+  --popup:rgba(255,255,255,.93);
+  --shadow:0 10px 30px rgba(47,79,79,.16);
+  --blob1:rgba(153,50,204,.20); --blob2:rgba(255,140,0,.20); --blob3:rgba(0,191,255,.20);
+}
+
+html{background:var(--bg)}
+body{
+  background:
+    radial-gradient(900px 600px at 0% 0%,var(--blob1),transparent 60%),
+    radial-gradient(800px 520px at 100% 0%,var(--blob2),transparent 60%),
+    radial-gradient(1000px 700px at 60% 100%,var(--blob3),transparent 60%),
+    var(--bg);
+  background-attachment:fixed;
+  color:var(--text);
+}
+
+/* Frosted glass: translucent fill + blur of what's behind + bright top edge + soft shadow */
+header,aside,.card,.glass{
+  background:linear-gradient(180deg,var(--glass-hi),transparent 45%),var(--panel);
+  -webkit-backdrop-filter:blur(18px) saturate(160%);
+  backdrop-filter:blur(18px) saturate(160%);
+  border:1px solid var(--glass-border);
+  box-shadow:var(--shadow);
+}
+header{position:sticky;top:0;z-index:5;border-width:0 0 1px}
+aside{border-width:0 1px 0 0;box-shadow:none}
+.card{border-radius:16px}
+
+/* Inner glass: lighter, no extra blur (blur inside blur is slow) */
+button,select,input,textarea,.kpi,details,.msg{
+  background:var(--panel2);
+  border-color:var(--glass-border);
+}
+button,select,input,textarea{color:var(--text)}
+button:hover{border-color:var(--accent)}
+button.primary,.seg button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.seg{border-color:var(--glass-border);background:var(--panel2)}
+.seg button{background:transparent}
+button.active,.feedbar button[aria-pressed="true"]{color:var(--accent-text);border-color:var(--accent)}
+.badge{color:var(--accent-text);border-color:var(--accent)}
+details p,details li,.ctx{color:var(--text2)}
+input::placeholder,textarea::placeholder{color:var(--muted)}
+:root[data-theme="light"] :is(button,select,input,textarea,.kpi,details,.msg,.seg){border-color:var(--line)}
+
+/* Map popups and toast */
+.maplibregl-popup-content{
+  background:var(--popup);color:var(--text);
+  -webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);
+  border:1px solid var(--glass-border);border-radius:12px;box-shadow:var(--shadow);
+}
+.maplibregl-popup-anchor-bottom .maplibregl-popup-tip,.maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
+.maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip{border-top-color:var(--popup) !important}
+.maplibregl-popup-anchor-top .maplibregl-popup-tip,.maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
+.maplibregl-popup-anchor-top-right .maplibregl-popup-tip{border-bottom-color:var(--popup) !important}
+.maplibregl-popup-close-button{color:var(--text)}
+#toast{background:var(--popup);color:var(--text);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+
+/* Light / dark switch */
+.theme-toggle{
+  display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:5px 12px;font-size:13px;
+  background:var(--panel2);border:1px solid var(--glass-border);color:var(--text);cursor:pointer;
+}
+.theme-toggle .knob{width:14px;height:14px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent)}
+:root[data-theme="light"] .theme-toggle .knob{background:var(--accent2);box-shadow:0 0 8px var(--accent2)}
+
+@media (prefers-reduced-transparency: reduce){
+  header,aside,.card,.glass,.maplibregl-popup-content,#toast{-webkit-backdrop-filter:none;backdrop-filter:none;background:var(--bg-solid)}
+}
