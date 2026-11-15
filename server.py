@@ -71,6 +71,8 @@ PUBLIC_FILES = {"/", "/index.html", "/connect.html", "/theme.css", "/theme.js", 
                 "/manifest.webmanifest", "/sw.js", "/icons/apple-touch-icon.png", "/icons/icon-192.png",
                 "/icons/icon-512.png", "/icons/icon-maskable-512.png"}
 PREDICTION_FILE = re.compile(r"^/predictions/[a-z0-9_]+\.json\Z")   # forecast maps made by ml/train.py
+# The Fire Connect phone app built for the web by build_app.py (folder app/), served at /app/.
+APP_FILE = re.compile(r"^/app/(?!.*\.\.)[A-Za-z0-9_\-./@]+\Z")
 
 CACHE_DIR = os.path.join(ROOT, ".cache")   # downloaded FIRMS answers (gzip). Safe to delete.
 NRT_TTL = 3600                               # re-download near-real-time answers after 1 hour
@@ -940,7 +942,7 @@ class Handler(SimpleHTTPRequestHandler):
 
     def end_headers(self):
         # The service worker and the app manifest must never be stale, or installed phones miss updates.
-        if self.path.split("?")[0] in ("/sw.js", "/manifest.webmanifest"):
+        if self.path.split("?")[0] in ("/sw.js", "/manifest.webmanifest", "/app/index.html", "/app/manifest.webmanifest"):
             self.send_header("Cache-Control", "no-cache")
         super().end_headers()
 
@@ -1047,6 +1049,16 @@ class Handler(SimpleHTTPRequestHandler):
         # Only the website's own public files are served. Everything else (.env with the key,
         # server.py, ...) is refused, whatever tricks are in the URL.
         path = urllib.parse.unquote(u.path)
+        if path == "/app":
+            self.send_response(301); self.send_header("Location", "/app/"); self.end_headers(); return
+        if path.startswith("/app/"):
+            f = os.path.join(ROOT, *path.split("/"))
+            if path == "/app/" or not APP_FILE.match(path) or not os.path.isfile(f):
+                # App screens (/app/report, /app/sos, ...) are routes inside the app, not files.
+                if "." in path.rsplit("/", 1)[-1] and path != "/app/":
+                    return self.send_error(404)
+                self.path = "/app/index.html"
+            return super().do_GET()
         if path not in PUBLIC_FILES and not PREDICTION_FILE.match(path):
             return self.send_error(404)
         return super().do_GET()
