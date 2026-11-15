@@ -12,9 +12,10 @@
   *{box-sizing:border-box}
   html,body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
   header{display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--line);background:var(--panel)}
-  header h1{font-size:18px;margin:0;font-weight:650}
-  header .sub{color:var(--muted);font-size:13px}
+  @font-face{font-family:"Avayx";src:url("fonts/Avayx.ttf") format("truetype");font-display:swap}
+  header h1{font-family:"Avayx",system-ui,sans-serif;font-size:40px;line-height:1;margin:0;font-weight:400;letter-spacing:.14em}
   header .spacer{flex:1}
+  @media (max-width:640px){ header{flex-wrap:wrap;gap:8px 10px;padding:12px 16px} header h1{font-size:30px;flex-basis:100%} }
   .badge{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--accent);color:var(--accent)}
   button,select,input{font:inherit;color:var(--text);background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
   button{cursor:pointer}
@@ -24,7 +25,7 @@
   button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent2);outline-offset:1px}
   .layout{display:grid;grid-template-columns:300px 1fr;min-height:calc(100vh - 57px)}
   aside{border-right:1px solid var(--line);background:var(--panel);padding:14px;overflow:auto}
-  aside h2{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:18px 0 8px}
+  aside h2{font-size:16px;font-weight:700;letter-spacing:.02em;color:var(--text);margin:22px 0 10px}
   aside h2:first-child{margin-top:0}
   .row{display:flex;gap:6px;margin-bottom:6px}
   .row > *{flex:1;min-width:0}
@@ -35,8 +36,8 @@
   .hint{font-size:12px;color:var(--muted);margin:4px 0 0}
   main{padding:14px;display:grid;gap:14px;grid-template-columns:repeat(12,1fr);align-content:start}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;min-width:0}
-  .card h3{margin:0 0 6px;font-size:14px;font-weight:600}
-  .card .desc{color:var(--muted);font-size:12px;margin:0 0 8px}
+  .card h3{margin:0 0 8px;font-size:21px;font-weight:700;letter-spacing:.01em}
+  .card .desc{color:var(--muted);font-size:13.5px;margin:0 0 10px}
   .span12{grid-column:span 12}.span7{grid-column:span 7}.span5{grid-column:span 5}.span6{grid-column:span 6}
   #map{height:420px;border-radius:8px}
   .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
@@ -47,7 +48,16 @@
   #calendar{height:560px}
   #trend,#profile{height:300px}
   details{background:var(--panel2);border-radius:8px;padding:8px 10px;margin-top:8px}
-  details summary{cursor:pointer;font-weight:600}
+  details summary{cursor:pointer;font-weight:700;font-size:16px}
+  details.guide{margin:0 0 4px}
+  /* coordinates laid out like a compass: N on top, W left, E right, S below */
+  .compass{display:grid;grid-template-columns:1fr 1fr 1fr;grid-template-rows:auto auto auto;gap:6px 6px;align-items:center;margin:8px 0 8px}
+  .compass > div{min-width:0}
+  .compass input{width:100%;min-width:0;padding:6px 6px;text-align:center}
+  .compass label.small{text-align:center}
+  .compass .n{grid-column:2;grid-row:1}.compass .w{grid-column:1;grid-row:2}.compass .e{grid-column:3;grid-row:2}.compass .s{grid-column:2;grid-row:3}
+  .compass .rose{grid-column:2;grid-row:2;display:flex;justify-content:center;align-items:center;color:var(--muted)}
+  .compass .rose svg{width:58px;height:58px}
   details p,details li{color:#dcd8cc;font-size:13px}
   .maptools{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;align-items:center}
   .drawing #map{cursor:crosshair}
@@ -97,8 +107,7 @@
 </head>
 <body>
 <header>
-  <h1>MovBAC</h1>
-  <span class="sub">Harmonized MODIS + VIIRS active-fire hotspots, 2012 to now</span>
+  <h1 aria-label="MovBAC">MovBAC</h1>
   <span class="spacer"></span>
   <button id="themeBtn" class="theme-toggle" type="button">Light mode</button>
   <a href="connect.html" style="color:var(--accent2);font-weight:600;text-decoration:none;border:1px solid var(--line);border-radius:8px;padding:5px 10px">Fire Connect</a>
@@ -107,6 +116,18 @@
 
 <div class="layout">
 <aside aria-label="Controls">
+  <details class="guide">
+    <summary>How to read this</summary>
+    <ul>
+      <li><b>Hotspot</b> = one satellite pixel where a sensor saw unusually hot ground, usually a fire.</li>
+      <li><b>MODIS</b> (1 km pixels, since 2000) is being retired. <b>VIIRS</b> (375 m pixels, since 2012) sees smaller fires, so it reports more hotspots for the same fires.</li>
+      <li><b>Raw</b> view switches sensors in 2012, so you'll see a fake "jump" that has nothing to do with real fires.</li>
+      <li><b>Harmonized</b> converts the old MODIS counts into VIIRS-equivalent counts, so the whole record is on one scale.</li>
+      <li><b>Anomaly</b> shows each month compared with the median of the same month in all years. Orange is busier than normal and purple is quieter.</li>
+      <li><b>Why these regions?</b> The detailed data (VIIRS hotspots and the ML fire forecast) covers California, Australia, Brazil and Africa. We chose them because they have frequent, large wildfires. Everywhere else you still get the MODIS fire history and the wildfire outlook.</li>
+      <li><b>What's next:</b> we plan to extend the full detail to the rest of the world. That mainly needs bigger servers to download and process the satellite data for the whole planet.</li>
+    </ul>
+  </details>
   <h2>1 · Area of interest</h2>
   <div class="row">
     <select id="preset" aria-label="Preset regions">
@@ -120,19 +141,22 @@
       <option value="112.0,-44.0,154.0,-10.0" data-start="2019-09-01" data-end="2020-02-29">Australia: Black Summer (Sep 2019–Feb 2020)</option>
     </select>
   </div>
-  <div class="row">
-    <div><label class="small" for="west">West (lon)</label><input id="west" type="number" step="0.01"></div>
-    <div><label class="small" for="east">East (lon)</label><input id="east" type="number" step="0.01"></div>
-  </div>
-  <div class="row">
-    <div><label class="small" for="south">South (lat)</label><input id="south" type="number" step="0.01"></div>
-    <div><label class="small" for="north">North (lat)</label><input id="north" type="number" step="0.01"></div>
+  <div class="compass" role="group" aria-label="Area edges in degrees">
+    <div class="n"><label class="small" for="north">North (lat)</label><input id="north" type="number" step="0.01"></div>
+    <div class="w"><label class="small" for="west">West (lon)</label><input id="west" type="number" step="0.01"></div>
+    <div class="rose" aria-hidden="true">
+      <svg viewBox="0 0 60 60"><circle cx="30" cy="30" r="27" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".6"/>
+        <path d="M30 6 L35 30 L30 27 L25 30Z" fill="#ff8c00"/><path d="M30 54 L25 30 L30 33 L35 30Z" fill="currentColor"/>
+        <path d="M6 30 L30 26 L54 30 L30 34Z" fill="currentColor" opacity=".45"/></svg>
+    </div>
+    <div class="e"><label class="small" for="east">East (lon)</label><input id="east" type="number" step="0.01"></div>
+    <div class="s"><label class="small" for="south">South (lat)</label><input id="south" type="number" step="0.01"></div>
   </div>
   <div class="row">
     <button id="applyBox">Apply coordinates</button>
     <button id="drawBtn" title="Click, then drag a box on the map">Draw on map</button>
   </div>
-  <p class="hint">Draw a box on the map, type coordinates, or pick a preset.</p>
+  <p class="hint">Draw a box on the map, type coordinates, or pick a preset. Presets cover places with frequent fires; full detail for the whole world is planned.</p>
 
   <h2>2 · Date range</h2>
   <div class="row">
@@ -153,16 +177,6 @@
   <div class="row"><button class="primary" id="csvBtn">Download hotspots CSV</button></div>
   <div class="row"><button id="csvMonthlyBtn">Download monthly calendar CSV</button></div>
 
-  <details>
-    <summary>How to read this</summary>
-    <ul>
-      <li><b>Hotspot</b> = one satellite pixel where a sensor saw unusually hot ground, usually a fire.</li>
-      <li><b>MODIS</b> (1 km pixels, since 2000) is being retired. <b>VIIRS</b> (375 m pixels, since 2012) sees smaller fires, so it reports more hotspots for the same fires.</li>
-      <li><b>Raw</b> view switches sensors in 2012, so you'll see a fake "jump" that has nothing to do with real fires.</li>
-      <li><b>Harmonized</b> converts the old MODIS counts into VIIRS-equivalent counts, so the whole 2001→today record is on one scale.</li>
-      <li><b>Anomaly</b> shows each month compared with the median of the same month in all years. Orange is busier than normal and purple is quieter.</li>
-    </ul>
-  </details>
 </aside>
 
 <main>

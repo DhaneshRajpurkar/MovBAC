@@ -69,7 +69,7 @@ def google_fetch(path_qs):
 PUBLIC_FILES = {"/", "/index.html", "/connect.html", "/theme.css", "/theme.js", "/README.md",
                 # Fire Connect as an installable home-screen app
                 "/manifest.webmanifest", "/sw.js", "/icons/apple-touch-icon.png", "/icons/icon-192.png",
-                "/icons/icon-512.png", "/icons/icon-maskable-512.png"}
+                "/icons/icon-512.png", "/icons/icon-maskable-512.png", "/fonts/Avayx.ttf"}
 PREDICTION_FILE = re.compile(r"^/predictions/[a-z0-9_]+\.json\Z")   # forecast maps made by ml/train.py
 # The Fire Connect phone app built for the web by build_app.py (folder app/), served at /app/.
 APP_FILE = re.compile(r"^/app/(?!.*\.\.)[A-Za-z0-9_\-./@]+\Z")
