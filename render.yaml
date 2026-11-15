@@ -1,4 +1,4 @@
-# Render blueprint for MavBAC (website + Fire Connect message server).
+# Render blueprint for MaVBAC (website + Fire Connect message server).
 # Secrets are NOT stored here: Render asks for each "sync: false" value when the blueprint is created.
 services:
   - type: web

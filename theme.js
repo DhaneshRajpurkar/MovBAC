@@ -1,4 +1,4 @@
-// MavBAC light/dark mode. Load in <head> (not deferred) so the right mode is set before the page paints.
+// MaVBAC light/dark mode. Load in <head> (not deferred) so the right mode is set before the page paints.
 // Remembers the choice per browser; otherwise follows the device setting.
 (function () {
   var KEY = 'movbac-theme';

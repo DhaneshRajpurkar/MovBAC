@@ -23,7 +23,7 @@ HEAD = """
 """
 
 MANIFEST = {
-    "name": "Fire Connect by MavBAC",
+    "name": "Fire Connect by MaVBAC",
     "short_name": "Fire Connect",
     "description": "Report fires, ask questions and get official alerts from forecasters and first responders.",
     "id": "/app/",
