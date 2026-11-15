@@ -1,12 +1,12 @@
-# MovBAC: Burning Activity Calendar + Fire Connect
+# MavBAC: Burning Activity Calendar + Fire Connect
 
-NASA Space Apps 2026 project. MovBAC turns NASA's satellite fire detections into a calendar of burning activity that you can compare across 2012 to today, even though NASA switched satellites (MODIS to VIIRS) along the way. It also forecasts how likely a wildfire is in the next 30 days, and explains why. **Fire Connect** is a live board where the public, forecasters and first responders can share fire reports, questions and official alerts.
+NASA Space Apps 2026 project. MavBAC turns NASA's satellite fire detections into a calendar of burning activity that you can compare across 2012 to today, even though NASA switched satellites (MODIS to VIIRS) along the way. It also forecasts how likely a wildfire is in the next 30 days, and explains why. **Fire Connect** is a live board where the public, forecasters and first responders can share fire reports, questions and official alerts.
 
 ## Try it
 
 | | Link |
 |---|---|
-| **MovBAC website** | **https://movbac.onrender.com** |
+| **MavBAC website** | **https://movbac.onrender.com** |
 | **Fire Connect (web page)** | https://movbac.onrender.com/connect.html |
 | **Fire Connect app (phone)** | **https://movbac.onrender.com/app/** |
 
@@ -41,7 +41,7 @@ Detailed VIIRS data and the ML forecast cover California, Australia, Brazil and 
 
 # For developers
 
-The website is `index.html` (MovBAC) and `connect.html` (Fire Connect), served by `server.py` (Python standard library only). The phone app is an Expo app in `mavbac-connect/` (kept out of this repo); `python build_app.py` builds it for the web into `app/`, which `server.py` serves at `/app/`.
+The website is `index.html` (MavBAC) and `connect.html` (Fire Connect), served by `server.py` (Python standard library only). The phone app is an Expo app in `mavbac-connect/` (kept out of this repo); `python build_app.py` builds it for the web into `app/`, which `server.py` serves at `/app/`.
 
 **Hosting:** the live site runs on Render from this repo (`render.yaml`). Every push to `main` redeploys automatically. API keys are set in Render's Environment settings, never in the code.
 

@@ -1,4 +1,4 @@
-/* MovBAC shared theme: the 5-colour palette + frosted-glass surfaces, in dark (default) and light mode.
+/* MavBAC shared theme: the 5-colour palette + frosted-glass surfaces, in dark (default) and light mode.
    Palette: DarkSlateGray #2F4F4F (base) · DarkOrange #FF8C00 (action) · FireBrick #B22222 (emergency)
             DarkOrchid #9932CC (ML forecast) · DeepSkyBlue #00BFFF (information). Text: FloralWhite.
    Loaded AFTER each page's own <style>, so these surface rules win. */
