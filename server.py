@@ -390,6 +390,12 @@ def public(m):
     return {k: v for k, v in m.items() if k != "ip"}
 
 
+def code_ok(code):
+    """Responder code check that ignores spaces, dashes and upper/lower case (easy to mistype or mis-copy)."""
+    norm = lambda c: re.sub(r"[\s-]", "", str(c or "")).upper()
+    return bool(RESPONDER_CODE) and hmac.compare_digest(norm(code), norm(RESPONDER_CODE))
+
+
 def post_message(body, ip):
     """Validate and store one message. Returns (http_code, answer)."""
     kind, role = body.get("kind"), body.get("role", "civilian")
@@ -399,7 +405,7 @@ def post_message(body, ip):
         return 400, {"error": "need kind, role and a message of 1-1000 characters"}
     verified = False
     if role != "civilian":
-        if not RESPONDER_CODE or not hmac.compare_digest(str(body.get("code", "")), RESPONDER_CODE):
+        if not code_ok(body.get("code")):
             return 403, {"error": "Wrong or missing responder code. Forecasters and responders need the code to post as verified."}
         verified = True
     if kind == "alert" and not verified:
@@ -440,7 +446,7 @@ def post_message(body, ip):
 
 
 def delete_message(body):
-    if not RESPONDER_CODE or not hmac.compare_digest(str(body.get("code", "")), RESPONDER_CODE):
+    if not code_ok(body.get("code")):
         return 403, {"error": "only verified responders can remove posts"}
     with _msg_lock:
         for m in _msgs:
