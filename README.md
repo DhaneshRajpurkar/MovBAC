@@ -1,7 +1,49 @@
-# Burning Activity Calendar: website + data contract
+# MovBAC: Burning Activity Calendar + Fire Connect
 
-`index.html` is the whole frontend: one file, no build step. Open it in a browser, or drop it on Vercel / GitHub Pages.
-It currently runs on **mock data** (badge in the top-right says so). Mock numbers are fake and only show the shape of the real data.
+NASA Space Apps 2026 project. MovBAC turns NASA's satellite fire detections into a calendar of burning activity that you can compare across 2012 to today, even though NASA switched satellites (MODIS to VIIRS) along the way. It also forecasts how likely a wildfire is in the next 30 days, and explains why. **Fire Connect** is a live board where the public, forecasters and first responders can share fire reports, questions and official alerts.
+
+## Try it
+
+| | Link |
+|---|---|
+| **MovBAC website** | **https://movbac.onrender.com** |
+| **Fire Connect (web page)** | https://movbac.onrender.com/connect.html |
+| **Fire Connect app (phone)** | **https://movbac.onrender.com/app/** |
+
+> The site runs on a free server that sleeps when nobody has used it for 15 minutes. If it is slow to open, wait about a minute and it will wake up.
+
+### Put the Fire Connect app on your home screen
+
+No app store needed. Open the app link on your phone and add it like any other app:
+
+**iPhone / iPad (Safari)**
+1. Open **https://movbac.onrender.com/app/** in **Safari** (it has to be Safari, not Chrome).
+2. Tap the **Share** button (the square with an arrow pointing up).
+3. Scroll down and tap **Add to Home Screen**, then **Add**.
+4. Open **Fire Connect** from your home screen. Tap **Tap to begin** to start the intro with sound.
+
+**Android (Chrome)**
+1. Open **https://movbac.onrender.com/app/** in **Chrome**.
+2. Tap the **⋮** menu (top right), then **Add to Home screen** or **Install app**.
+3. Confirm, then open **Fire Connect** from your home screen.
+
+To get the newest version later, close the app completely and open it again.
+
+### What's inside
+- **Burning activity calendar:** monthly fire activity for any area, harmonized so old MODIS counts and new VIIRS counts are on one scale.
+- **Map:** real NASA FIRMS fire detections, a 30-day fire-likelihood forecast (machine learning), and a 3D view (Google Photorealistic 3D at city zoom).
+- **Wildfire outlook:** pick any place to see how likely a wildfire is in the next 30 days and the reasons: past wildfires and their causes, fire season, climate and this week's weather.
+- **Fire Connect:** post a fire or smoke report with your location, ask questions, and see official alerts from verified forecasters and responders. **It is a prototype that no emergency service watches. In an emergency, call your local emergency number first.**
+
+Detailed VIIRS data and the ML forecast cover California, Australia, Brazil and Africa, chosen for their frequent, large wildfires. We plan to extend this to the whole world; that mainly needs bigger servers.
+
+---
+
+# For developers
+
+The website is `index.html` (MovBAC) and `connect.html` (Fire Connect), served by `server.py` (Python standard library only). The phone app is an Expo app in `mavbac-connect/` (kept out of this repo); `python build_app.py` builds it for the web into `app/`, which `server.py` serves at `/app/`.
+
+**Hosting:** the live site runs on Render from this repo (`render.yaml`). Every push to `main` redeploys automatically. API keys are set in Render's Environment settings, never in the code.
 
 ## Real NASA FIRMS data (uses the MAP_KEY)
 The map dots and the hotspot CSV can show **real** FIRMS detections (MODIS + VIIRS S-NPP). The calendar and charts stay on mock numbers until the harmonized dataset is plugged in.
@@ -20,7 +62,7 @@ The **Wildfire outlook** card (`/api/outlook?lat=..&lon=..`) rates the next 30 d
 Tilts the map over whatever spot you're looking at. Zoomed out: terrain (AWS Terrain Tiles) with the fire heat map. Zoomed in to a city (zoom 12+): 3D buildings. Optional **Google Photorealistic 3D Tiles**: enable the *Map Tiles API* in Google Cloud, create an API key restricted to that API, and add `GOOGLE_MAPS_KEY=...` to `.env`. The browser loads tiles from `server.py` at `/v1/3dtiles/...`, which adds the key (it never reaches the browser) and stores nothing. Each visitor can start at most 30 new 3D sessions an hour, to protect billing. If the tiles don't load, the page falls back to the standard 3D view.
 
 **Fire Connect page (`/connect.html`)**
-A live message board for forecasters, first responders and the public. Anyone can post a fire/smoke report (with a map pin) or a question. Forecasters and responders who enter `RESPONDER_CODE` (from `.env`) are marked ✔ verified, can post official alerts (pinned at the top for 3 days) and can remove false posts. Each post with a location is tagged with our 30-day fire forecast and the live weather there. Messages are saved in `.data/messages.jsonl` (git-ignored, never served). It's a prototype that no real agency watches, so the page always tells people to call their emergency number first. It needs `server.py`; on Vercel it would need a database, so there it only shows a notice.
+A live message board for forecasters, first responders and the public. Anyone can post a fire/smoke report (with a map pin) or a question. Forecasters and responders who enter `RESPONDER_CODE` (from `.env`) are marked verified, can post official alerts (pinned at the top for 3 days) and can remove false posts. Each post with a location is tagged with our 30-day fire forecast and the live weather there. Messages are saved in `.data/messages.jsonl` (git-ignored, never served). It's a prototype that no real agency watches, so the page always tells people to call their emergency number first. It needs `server.py`; on Vercel it would need a database, so there it only shows a notice.
 
 **On Vercel**
 1. Vercel → your project → Settings → Environment Variables → add `FIRMS_MAP_KEY` with the key (and `OPENWEATHER_KEY` if you use it).
