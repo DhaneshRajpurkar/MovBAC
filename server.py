@@ -938,7 +938,8 @@ def get_outlook(lat, lon):
 
 
 class Handler(SimpleHTTPRequestHandler):
-    extensions_map = {**SimpleHTTPRequestHandler.extensions_map, ".webmanifest": "application/manifest+json"}
+    extensions_map = {**SimpleHTTPRequestHandler.extensions_map, ".webmanifest": "application/manifest+json",
+                      ".aac": "audio/aac", ".m4a": "audio/mp4", ".mp3": "audio/mpeg"}
 
     def end_headers(self):
         # The service worker and the app manifest must never be stale, or installed phones miss updates.
